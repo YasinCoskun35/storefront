@@ -2,6 +2,7 @@ using Storefront.Api.Extensions;
 using Storefront.Modules.Identity;
 using Storefront.Modules.Catalog;
 using Storefront.Modules.Content;
+using Storefront.Modules.Orders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +67,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddCatalogModule(builder.Configuration);
 builder.Services.AddContentModule(builder.Configuration);
+builder.Services.AddOrdersModule(builder.Configuration);
 
 var app = builder.Build();
 

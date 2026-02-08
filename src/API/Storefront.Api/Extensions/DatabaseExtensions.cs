@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Storefront.Modules.Identity.Infrastructure.Persistence;
 using Storefront.Modules.Catalog.Infrastructure.Persistence;
 using Storefront.Modules.Content.Infrastructure.Persistence;
+using Storefront.Modules.Orders.Infrastructure.Persistence;
 using Npgsql;
 
 namespace Storefront.Api.Extensions;
@@ -240,6 +241,219 @@ public static class DatabaseExtensions
                 else
                 {
                     Console.WriteLine($"✅ Content schema initialized ({contentTableCount} tables)");
+                }
+                
+                // Create Orders database and tables
+                var ordersDb = services.GetRequiredService<OrdersDbContext>();
+                if (ordersDb.Database.GetPendingMigrations().Any())
+                {
+                    Console.WriteLine("📦 Applying Orders migrations...");
+                    await ordersDb.Database.MigrateAsync();
+                }
+                else
+                {
+                    Console.WriteLine("🔨 Creating Orders schema and tables...");
+                    await ordersDb.Database.EnsureCreatedAsync();
+                }
+                
+                var ordersTableCount = await ExecuteScalarAsync<int>(ordersDb,
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'orders'");
+                
+                if (ordersTableCount == 0)
+                {
+                    Console.WriteLine("⚠️ Orders tables not found, forcing creation...");
+                    
+                    // ColorCharts table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""ColorCharts"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""Name"" varchar(200) NOT NULL,
+                            ""Code"" varchar(100) NOT NULL,
+                            ""Description"" varchar(2000) NOT NULL,
+                            ""Type"" varchar(50) NOT NULL,
+                            ""MainImageUrl"" varchar(1000),
+                            ""ThumbnailUrl"" varchar(1000),
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            ""UpdatedAt"" timestamp,
+                            ""CreatedBy"" varchar(450) NOT NULL
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ColorCharts_Code"" ON orders.""ColorCharts"" (""Code"");
+                        CREATE INDEX IF NOT EXISTS ""IX_ColorCharts_Type"" ON orders.""ColorCharts"" (""Type"");
+                        CREATE INDEX IF NOT EXISTS ""IX_ColorCharts_IsActive"" ON orders.""ColorCharts"" (""IsActive"");
+                    ");
+                    
+                    // ColorOptions table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""ColorOptions"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""ColorChartId"" varchar(450) NOT NULL,
+                            ""Name"" varchar(200) NOT NULL,
+                            ""Code"" varchar(100) NOT NULL,
+                            ""HexColor"" varchar(10),
+                            ""ImageUrl"" varchar(1000),
+                            ""IsAvailable"" boolean NOT NULL DEFAULT true,
+                            ""StockLevel"" int NOT NULL DEFAULT 0,
+                            ""PriceAdjustment"" decimal(18,2),
+                            ""DisplayOrder"" int NOT NULL DEFAULT 0,
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            FOREIGN KEY (""ColorChartId"") REFERENCES orders.""ColorCharts""(""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_ColorOptions_ColorChartId"" ON orders.""ColorOptions"" (""ColorChartId"");
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ColorOptions_ColorChartId_Code"" ON orders.""ColorOptions"" (""ColorChartId"", ""Code"");
+                    ");
+                    
+                    // ProductColorCharts table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""ProductColorCharts"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""ProductId"" varchar(450) NOT NULL,
+                            ""ColorChartId"" varchar(450) NOT NULL,
+                            ""IsRequired"" boolean NOT NULL DEFAULT true,
+                            ""AllowMultiple"" boolean NOT NULL DEFAULT false,
+                            ""DisplayOrder"" int NOT NULL DEFAULT 0,
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            FOREIGN KEY (""ColorChartId"") REFERENCES orders.""ColorCharts""(""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_ProductColorCharts_ProductId"" ON orders.""ProductColorCharts"" (""ProductId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_ProductColorCharts_ColorChartId"" ON orders.""ProductColorCharts"" (""ColorChartId"");
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ProductColorCharts_ProductId_ColorChartId"" ON orders.""ProductColorCharts"" (""ProductId"", ""ColorChartId"");
+                    ");
+                    
+                    // Carts table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""Carts"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""PartnerUserId"" varchar(450) NOT NULL,
+                            ""PartnerCompanyId"" varchar(450) NOT NULL,
+                            ""IsActive"" boolean NOT NULL DEFAULT true,
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            ""UpdatedAt"" timestamp
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Carts_PartnerUserId"" ON orders.""Carts"" (""PartnerUserId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_Carts_PartnerCompanyId"" ON orders.""Carts"" (""PartnerCompanyId"");
+                    ");
+                    
+                    // CartItems table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""CartItems"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""CartId"" varchar(450) NOT NULL,
+                            ""ProductId"" varchar(450) NOT NULL,
+                            ""ProductName"" varchar(500) NOT NULL,
+                            ""ProductSKU"" varchar(100) NOT NULL,
+                            ""ProductImageUrl"" varchar(1000),
+                            ""Quantity"" int NOT NULL DEFAULT 1,
+                            ""ColorChartId"" varchar(450),
+                            ""ColorChartName"" varchar(200),
+                            ""ColorOptionId"" varchar(450),
+                            ""ColorOptionName"" varchar(200),
+                            ""ColorOptionCode"" varchar(100),
+                            ""CustomizationNotes"" varchar(2000),
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            ""UpdatedAt"" timestamp,
+                            FOREIGN KEY (""CartId"") REFERENCES orders.""Carts""(""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_CartItems_CartId"" ON orders.""CartItems"" (""CartId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_CartItems_ProductId"" ON orders.""CartItems"" (""ProductId"");
+                    ");
+                    
+                    // Orders table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""Orders"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""OrderNumber"" varchar(50) NOT NULL,
+                            ""PartnerCompanyId"" varchar(450) NOT NULL,
+                            ""PartnerUserId"" varchar(450) NOT NULL,
+                            ""PartnerCompanyName"" varchar(200) NOT NULL,
+                            ""Status"" int NOT NULL,
+                            ""SubTotal"" decimal(18,2),
+                            ""TaxAmount"" decimal(18,2),
+                            ""ShippingCost"" decimal(18,2),
+                            ""Discount"" decimal(18,2),
+                            ""TotalAmount"" decimal(18,2),
+                            ""Currency"" varchar(10),
+                            ""DeliveryAddress"" varchar(500) NOT NULL,
+                            ""DeliveryCity"" varchar(100) NOT NULL,
+                            ""DeliveryState"" varchar(100) NOT NULL,
+                            ""DeliveryPostalCode"" varchar(20) NOT NULL,
+                            ""DeliveryCountry"" varchar(100) NOT NULL,
+                            ""DeliveryNotes"" varchar(2000),
+                            ""RequestedDeliveryDate"" timestamp,
+                            ""ExpectedDeliveryDate"" timestamp,
+                            ""ActualDeliveryDate"" timestamp,
+                            ""Notes"" varchar(5000),
+                            ""InternalNotes"" varchar(5000),
+                            ""TrackingNumber"" varchar(200),
+                            ""ShippingProvider"" varchar(100),
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            ""UpdatedAt"" timestamp,
+                            ""SubmittedAt"" timestamp,
+                            ""ConfirmedAt"" timestamp,
+                            ""CancelledAt"" timestamp
+                        );
+                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Orders_OrderNumber"" ON orders.""Orders"" (""OrderNumber"");
+                        CREATE INDEX IF NOT EXISTS ""IX_Orders_PartnerCompanyId"" ON orders.""Orders"" (""PartnerCompanyId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_Orders_PartnerUserId"" ON orders.""Orders"" (""PartnerUserId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_Orders_Status"" ON orders.""Orders"" (""Status"");
+                        CREATE INDEX IF NOT EXISTS ""IX_Orders_CreatedAt"" ON orders.""Orders"" (""CreatedAt"");
+                    ");
+                    
+                    // OrderItems table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""OrderItems"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""OrderId"" varchar(450) NOT NULL,
+                            ""ProductId"" varchar(450) NOT NULL,
+                            ""ProductName"" varchar(500) NOT NULL,
+                            ""ProductSKU"" varchar(100) NOT NULL,
+                            ""ProductImageUrl"" varchar(1000),
+                            ""Quantity"" int NOT NULL DEFAULT 1,
+                            ""ColorChartId"" varchar(450),
+                            ""ColorChartName"" varchar(200),
+                            ""ColorOptionId"" varchar(450),
+                            ""ColorOptionName"" varchar(200),
+                            ""ColorOptionCode"" varchar(100),
+                            ""ColorOptionImageUrl"" varchar(1000),
+                            ""UnitPrice"" decimal(18,2),
+                            ""Discount"" decimal(18,2),
+                            ""TotalPrice"" decimal(18,2),
+                            ""CustomizationNotes"" varchar(2000),
+                            ""DisplayOrder"" int NOT NULL DEFAULT 0,
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            FOREIGN KEY (""OrderId"") REFERENCES orders.""Orders""(""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_OrderItems_OrderId"" ON orders.""OrderItems"" (""OrderId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_OrderItems_ProductId"" ON orders.""OrderItems"" (""ProductId"");
+                    ");
+                    
+                    // OrderComments table
+                    await ordersDb.Database.ExecuteSqlRawAsync(@"
+                        CREATE TABLE IF NOT EXISTS orders.""OrderComments"" (
+                            ""Id"" varchar(450) PRIMARY KEY,
+                            ""OrderId"" varchar(450) NOT NULL,
+                            ""Content"" varchar(5000) NOT NULL,
+                            ""Type"" int NOT NULL,
+                            ""AuthorId"" varchar(450) NOT NULL,
+                            ""AuthorName"" varchar(200) NOT NULL,
+                            ""AuthorType"" varchar(50) NOT NULL,
+                            ""IsInternal"" boolean NOT NULL DEFAULT false,
+                            ""IsSystemGenerated"" boolean NOT NULL DEFAULT false,
+                            ""AttachmentUrl"" varchar(1000),
+                            ""AttachmentFileName"" varchar(500),
+                            ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                            ""UpdatedAt"" timestamp,
+                            FOREIGN KEY (""OrderId"") REFERENCES orders.""Orders""(""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX IF NOT EXISTS ""IX_OrderComments_OrderId"" ON orders.""OrderComments"" (""OrderId"");
+                        CREATE INDEX IF NOT EXISTS ""IX_OrderComments_CreatedAt"" ON orders.""OrderComments"" (""CreatedAt"");
+                    ");
+                    
+                    Console.WriteLine("✅ Orders tables created manually");
+                }
+                else
+                {
+                    Console.WriteLine($"✅ Orders schema initialized ({ordersTableCount} tables)");
                 }
                 
                 Console.WriteLine("✅ All database schemas and tables initialized successfully");

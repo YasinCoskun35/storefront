@@ -12,6 +12,9 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     }
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PartnerCompany> PartnerCompanies => Set<PartnerCompany>();
+    public DbSet<PartnerUser> PartnerUsers => Set<PartnerUser>();
+    public DbSet<PartnerContact> PartnerContacts => Set<PartnerContact>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -61,6 +64,93 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
         {
             entity.Property(r => r.Description).HasMaxLength(500);
             entity.Property(r => r.CreatedAt).IsRequired();
+        });
+
+        // Configure PartnerCompany
+        builder.Entity<PartnerCompany>(entity =>
+        {
+            entity.ToTable("PartnerCompanies");
+            entity.HasKey(pc => pc.Id);
+            entity.Property(pc => pc.Id).HasMaxLength(450);
+            
+            entity.Property(pc => pc.CompanyName).IsRequired().HasMaxLength(200);
+            entity.Property(pc => pc.TaxId).IsRequired().HasMaxLength(50);
+            entity.Property(pc => pc.Email).IsRequired().HasMaxLength(100);
+            entity.Property(pc => pc.Phone).IsRequired().HasMaxLength(20);
+            
+            entity.Property(pc => pc.Address).IsRequired().HasMaxLength(500);
+            entity.Property(pc => pc.City).IsRequired().HasMaxLength(100);
+            entity.Property(pc => pc.State).IsRequired().HasMaxLength(100);
+            entity.Property(pc => pc.PostalCode).IsRequired().HasMaxLength(20);
+            entity.Property(pc => pc.Country).IsRequired().HasMaxLength(100);
+            
+            entity.Property(pc => pc.Industry).HasMaxLength(100);
+            entity.Property(pc => pc.Website).HasMaxLength(200);
+            entity.Property(pc => pc.Notes).HasMaxLength(2000);
+            entity.Property(pc => pc.ApprovedBy).HasMaxLength(450);
+            entity.Property(pc => pc.ApprovalNotes).HasMaxLength(1000);
+            
+            entity.Property(pc => pc.Status).IsRequired();
+            entity.Property(pc => pc.CreatedAt).IsRequired();
+            
+            entity.HasIndex(pc => pc.TaxId).IsUnique();
+            entity.HasIndex(pc => pc.Email);
+            entity.HasIndex(pc => pc.Status);
+        });
+
+        // Configure PartnerUser
+        builder.Entity<PartnerUser>(entity =>
+        {
+            entity.ToTable("PartnerUsers");
+            entity.HasKey(pu => pu.Id);
+            entity.Property(pu => pu.Id).HasMaxLength(450);
+            
+            entity.Property(pu => pu.PartnerCompanyId).IsRequired().HasMaxLength(450);
+            entity.Property(pu => pu.Email).IsRequired().HasMaxLength(100);
+            entity.Property(pu => pu.PasswordHash).IsRequired().HasMaxLength(500);
+            entity.Property(pu => pu.FirstName).IsRequired().HasMaxLength(100);
+            entity.Property(pu => pu.LastName).IsRequired().HasMaxLength(100);
+            entity.Property(pu => pu.Phone).HasMaxLength(20);
+            
+            entity.Property(pu => pu.Role).IsRequired();
+            entity.Property(pu => pu.IsActive).IsRequired();
+            entity.Property(pu => pu.EmailConfirmed).IsRequired();
+            entity.Property(pu => pu.CreatedAt).IsRequired();
+            
+            entity.HasOne(pu => pu.Company)
+                .WithMany(pc => pc.Users)
+                .HasForeignKey(pu => pu.PartnerCompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasIndex(pu => pu.Email).IsUnique();
+            entity.HasIndex(pu => pu.PartnerCompanyId);
+            entity.HasIndex(pu => new { pu.Email, pu.PartnerCompanyId });
+        });
+
+        // Configure PartnerContact
+        builder.Entity<PartnerContact>(entity =>
+        {
+            entity.ToTable("PartnerContacts");
+            entity.HasKey(pc => pc.Id);
+            entity.Property(pc => pc.Id).HasMaxLength(450);
+            
+            entity.Property(pc => pc.PartnerCompanyId).IsRequired().HasMaxLength(450);
+            entity.Property(pc => pc.Name).IsRequired().HasMaxLength(100);
+            entity.Property(pc => pc.Title).IsRequired().HasMaxLength(100);
+            entity.Property(pc => pc.Email).IsRequired().HasMaxLength(100);
+            entity.Property(pc => pc.Phone).IsRequired().HasMaxLength(20);
+            
+            entity.Property(pc => pc.IsPrimary).IsRequired();
+            entity.Property(pc => pc.IsActive).IsRequired();
+            entity.Property(pc => pc.CreatedAt).IsRequired();
+            
+            entity.HasOne(pc => pc.Company)
+                .WithMany(c => c.Contacts)
+                .HasForeignKey(pc => pc.PartnerCompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasIndex(pc => pc.PartnerCompanyId);
+            entity.HasIndex(pc => pc.Email);
         });
     }
 }

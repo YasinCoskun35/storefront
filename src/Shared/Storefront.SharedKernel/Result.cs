@@ -1,5 +1,23 @@
 namespace Storefront.SharedKernel;
 
+public class Result
+{
+    public bool IsSuccess { get; }
+    public bool IsFailure => !IsSuccess;
+    public Error Error { get; }
+
+    private Result(bool isSuccess, Error error)
+    {
+        IsSuccess = isSuccess;
+        Error = error;
+    }
+
+    public static Result Success() => new(true, default!);
+    public static Result Failure(Error error) => new(false, error);
+
+    public static implicit operator Result(Error error) => Failure(error);
+}
+
 public class Result<T>
 {
     public bool IsSuccess { get; }
