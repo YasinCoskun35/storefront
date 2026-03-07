@@ -29,7 +29,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       pageNumber,
       pageSize: 12,
     }),
-    catalogApi.getCategories(),
+    catalogApi.getCategories({ all: true }),
   ]);
 
   return (
@@ -38,7 +38,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         <h1 className="text-4xl font-bold mb-2">Products</h1>
         {params.q && (
           <p className="text-muted-foreground">
-            Showing results for "{params.q}"
+            Showing results for &quot;{params.q}&quot;
           </p>
         )}
       </div>

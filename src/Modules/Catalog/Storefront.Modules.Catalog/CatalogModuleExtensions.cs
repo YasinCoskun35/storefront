@@ -9,7 +9,6 @@ using Storefront.Modules.Catalog.Core.Application.Settings;
 using Storefront.Modules.Catalog.Infrastructure.BackgroundJobs;
 using Storefront.Modules.Catalog.Infrastructure.Persistence;
 using Storefront.Modules.Catalog.Infrastructure.Services;
-
 namespace Storefront.Modules.Catalog;
 
 public static class CatalogModuleExtensions
@@ -43,8 +42,7 @@ public static class CatalogModuleExtensions
 
         // Register services
         services.AddScoped<IImageUploadService, ImageUploadService>();
-
-        // Register background service
+// Register background service
         services.AddHostedService<ImageProcessingBackgroundService>();
 
         // Register MediatR handlers from this assembly

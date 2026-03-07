@@ -21,6 +21,17 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Get partner order statistics
+    /// </summary>
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        var companyId = User.FindFirst("companyId")?.Value ?? "";
+        var result = await _mediator.Send(new GetPartnerOrderStatsQuery(companyId));
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, new { error = result.Error.Code });
+    }
+
+    /// <summary>
     /// Get partner's orders
     /// </summary>
     [HttpGet]
@@ -46,7 +57,7 @@ public class OrdersController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetOrderDetails(string id)
     {
-        var query = new GetOrderDetailsQuery(id);
+        var query = new GetOrderDetailsQuery(id, IncludeInternalComments: false);
         var result = await _mediator.Send(query);
 
         return result.IsSuccess
@@ -64,13 +75,16 @@ public class OrdersController : ControllerBase
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? throw new UnauthorizedAccessException("User ID not found");
-        
+
         var companyId = User.FindFirst("companyId")?.Value
             ?? throw new UnauthorizedAccessException("Company ID not found");
+
+        var companyName = User.FindFirst("companyName")?.Value ?? "Partner Company";
 
         var command = new CreateOrderCommand(
             userId,
             companyId,
+            companyName,
             request.DeliveryAddress,
             request.DeliveryCity,
             request.DeliveryState,
@@ -117,6 +131,24 @@ public class OrdersController : ControllerBase
             ? Created($"/api/partner/orders/{id}/comments/{result.Value}", new { commentId = result.Value })
             : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
     }
+
+    /// <summary>
+    /// Cancel an order (only while pending/quote sent)
+    /// </summary>
+    [HttpPost("{id}/cancel")]
+    public async Task<IActionResult> CancelOrder(string id, [FromBody] CancelOrderRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("User ID not found");
+
+        var result = await _mediator.Send(new CancelOrderCommand(id, userId, request.Reason));
+
+        return result.IsSuccess
+            ? Ok(new { message = "Order cancelled" })
+            : result.Error.Type == "NotFound"
+                ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
+                : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
 }
 
 public record CreateOrderRequest(
@@ -136,3 +168,5 @@ public record AddCommentRequest(
     string? AttachmentUrl,
     string? AttachmentFileName
 );
+
+public record CancelOrderRequest(string Reason);

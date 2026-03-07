@@ -4,84 +4,94 @@
 
 @layer base {
   :root {
-    /* Hardware Store Theme - Professional Orange & Gray */
+    /* Clean neutral foundation — Vercel/Linear/Stripe style */
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    
+    --foreground: 240 10% 3.9%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    
+    --card-foreground: 240 10% 3.9%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    
-    /* Primary - Orange (for CTAs, highlights, interactive elements) */
+    --popover-foreground: 240 10% 3.9%;
+
+    /* Primary — brand orange, kept as identity anchor */
     --primary: 25 95% 53%;
     --primary-foreground: 0 0% 100%;
-    
-    /* Secondary - Dark Charcoal (for headers, emphasis) */
-    --secondary: 222 47% 11%;
-    --secondary-foreground: 0 0% 100%;
-    
-    /* Muted - Light gray backgrounds */
-    --muted: 210 15% 96%;
-    --muted-foreground: 215 16% 47%;
-    
-    /* Accent - Teal/Blue for info */
-    --accent: 189 100% 35%;
-    --accent-foreground: 0 0% 100%;
-    
-    /* Semantic Colors */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    
+
+    /* Secondary — near-black for headings & emphasis */
+    --secondary: 240 5.9% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Muted — very light neutral gray */
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    /* Accent — light neutral, same as muted for clean look */
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    /* Semantic */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    
-    /* Borders & Inputs */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+
+    /* Borders & Inputs — very subtle */
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
     --ring: 25 95% 53%;
-    
+
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    
-    --card: 222 47% 15%;
-    --card-foreground: 210 40% 98%;
-    
-    --popover: 222 47% 15%;
-    --popover-foreground: 210 40% 98%;
-    
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+
     --primary: 25 95% 53%;
     --primary-foreground: 0 0% 100%;
-    
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    
-    --accent: 189 100% 35%;
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
     --success: 142 71% 35%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 38 92% 40%;
     --warning-foreground: 0 0% 100%;
-    
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
     --ring: 25 95% 53%;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -91,6 +101,6 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
-

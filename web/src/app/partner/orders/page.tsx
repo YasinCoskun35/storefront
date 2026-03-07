@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { partnerOrdersApi, OrderStatus } from "@/lib/api/orders";
+import { partnerOrdersApi, OrderSummary } from "@/lib/api/orders";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,8 @@ export default function PartnerOrdersPage() {
       }),
   });
 
-  const orders = ordersResponse?.items || [];
+  const orders: OrderSummary[] = ordersResponse?.items || [];
 
-  // Filter orders by search term
   const filteredOrders = orders.filter((order) =>
     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -46,10 +45,17 @@ export default function PartnerOrdersPage() {
           </div>
         </div>
 
-        <Button onClick={() => router.push("/partner/cart")}>
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          View Cart
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/products">
+            <Button variant="outline">
+              Browse Products
+            </Button>
+          </Link>
+          <Button onClick={() => router.push("/partner/cart")}>
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            View Cart
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -83,7 +89,7 @@ export default function PartnerOrdersPage() {
       {/* Orders List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       ) : filteredOrders.length === 0 ? (
         <Card className="p-12 text-center">

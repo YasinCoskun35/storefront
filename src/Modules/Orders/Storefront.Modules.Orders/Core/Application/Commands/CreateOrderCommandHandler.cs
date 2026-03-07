@@ -18,7 +18,6 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
 
     public async Task<Result<string>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
-        // Get partner's cart
         var cart = await _context.Carts
             .Include(c => c.Items)
             .FirstOrDefaultAsync(c => c.PartnerUserId == request.PartnerUserId && c.IsActive, cancellationToken);
@@ -28,20 +27,15 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
             return Error.Validation("Order.EmptyCart", "Cannot create order from empty cart");
         }
 
-        // Generate order number
         var orderCount = await _context.Orders.CountAsync(cancellationToken);
         var orderNumber = $"ORD-{DateTime.UtcNow:yyyy}-{(orderCount + 1):D4}";
 
-        // Get partner company name (would normally query Identity module, but denormalizing for simplicity)
-        var partnerCompanyName = "Partner Company"; // TODO: Get from Identity module
-
-        // Create order
         var order = new Order
         {
             OrderNumber = orderNumber,
             PartnerCompanyId = request.PartnerCompanyId,
             PartnerUserId = request.PartnerUserId,
-            PartnerCompanyName = partnerCompanyName,
+            PartnerCompanyName = request.PartnerCompanyName,
             Status = OrderStatus.Pending,
             DeliveryAddress = request.DeliveryAddress,
             DeliveryCity = request.DeliveryCity,
@@ -49,13 +43,14 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
             DeliveryPostalCode = request.DeliveryPostalCode,
             DeliveryCountry = request.DeliveryCountry,
             DeliveryNotes = request.DeliveryNotes,
-            RequestedDeliveryDate = request.RequestedDeliveryDate,
+            RequestedDeliveryDate = request.RequestedDeliveryDate.HasValue
+                ? DateTime.SpecifyKind(request.RequestedDeliveryDate.Value, DateTimeKind.Utc)
+                : null,
             Notes = request.Notes,
             CreatedAt = DateTime.UtcNow,
             SubmittedAt = DateTime.UtcNow
         };
 
-        // Convert cart items to order items
         foreach (var cartItem in cart.Items)
         {
             var orderItem = new OrderItem
@@ -66,11 +61,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
                 ProductSKU = cartItem.ProductSKU,
                 ProductImageUrl = cartItem.ProductImageUrl,
                 Quantity = cartItem.Quantity,
-                ColorChartId = cartItem.ColorChartId,
-                ColorChartName = cartItem.ColorChartName,
-                ColorOptionId = cartItem.ColorOptionId,
-                ColorOptionName = cartItem.ColorOptionName,
-                ColorOptionCode = cartItem.ColorOptionCode,
+                SelectedVariants = cartItem.SelectedVariants,
                 CustomizationNotes = cartItem.CustomizationNotes,
                 DisplayOrder = 0,
                 CreatedAt = DateTime.UtcNow
@@ -79,7 +70,6 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
             order.Items.Add(orderItem);
         }
 
-        // Add system comment
         var systemComment = new OrderComment
         {
             OrderId = order.Id,
@@ -96,7 +86,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
 
         _context.Orders.Add(order);
 
-        // Clear cart
+        _context.CartItems.RemoveRange(cart.Items);
         cart.IsActive = false;
         cart.UpdatedAt = DateTime.UtcNow;
 

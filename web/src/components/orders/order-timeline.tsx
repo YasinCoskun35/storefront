@@ -1,6 +1,6 @@
 "use client";
 
-import { OrderStatus, ORDER_STATUS_LABELS } from "@/lib/api/orders";
+import { OrderStatus } from "@/lib/api/orders";
 import { Check } from "lucide-react";
 
 interface OrderTimelineProps {

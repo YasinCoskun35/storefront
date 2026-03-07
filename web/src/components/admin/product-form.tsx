@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,10 +27,10 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
   const [sku, setSku] = useState(initialData?.sku || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [shortDescription, setShortDescription] = useState(initialData?.shortDescription || "");
-  const [price, setPrice] = useState(initialData?.price?.toString() || "");
-  const [compareAtPrice, setCompareAtPrice] = useState(initialData?.compareAtPrice?.toString() || "");
-  const [stockStatus, setStockStatus] = useState(initialData?.stockStatus || "InStock");
-  const [quantity, setQuantity] = useState(initialData?.quantity?.toString() || "0");
+  const [price] = useState(initialData?.price?.toString() || "");
+  const [compareAtPrice] = useState(initialData?.compareAtPrice?.toString() || "");
+  const [stockStatus] = useState(initialData?.stockStatus?.toString() || "1");
+  const [quantity] = useState(initialData?.quantity?.toString() || "0");
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || "");
   const [weight, setWeight] = useState(initialData?.weight?.toString() || "");
   const [length, setLength] = useState(initialData?.length?.toString() || "");
@@ -41,17 +41,16 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(initialData?.primaryImageUrl || "");
 
-  // Fetch categories
+  // Fetch categories (all for dropdown)
   const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => catalogApi.getCategories(),
+    queryKey: ["categories", "all"],
+    queryFn: () => catalogApi.getCategories({ all: true }),
   });
 
   // Create product mutation
   const createProductMutation = useMutation({
     mutationFn: (data: CreateProductDto) => catalogApi.createProduct(data),
     onSuccess: async (response) => {
-      // Upload image if provided
       if (imageFile) {
         try {
           await catalogApi.uploadProductImage(response.id, imageFile, true);
@@ -59,17 +58,36 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
           console.error("Failed to upload image:", error);
         }
       }
-
-      toast({
-        title: "Product created",
-        description: "The product has been created successfully.",
-      });
+      toast({ title: "Product created", description: "The product has been created successfully." });
       router.push("/admin/products");
     },
     onError: (error: any) => {
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to create product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update product mutation
+  const updateProductMutation = useMutation({
+    mutationFn: (data: Parameters<typeof catalogApi.updateProduct>[1]) =>
+      catalogApi.updateProduct(productId!, data),
+    onSuccess: async () => {
+      if (imageFile) {
+        try {
+          await catalogApi.uploadProductImage(productId!, imageFile, true);
+        } catch (error) {
+          console.error("Failed to upload image:", error);
+        }
+      }
+      toast({ title: "Product updated", description: "Changes saved successfully." });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update product",
         variant: "destructive",
       });
     },
@@ -96,37 +114,54 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
     e.preventDefault();
 
     // Validation
-    if (!name || !sku || !price || !categoryId) {
+    if (!name || !sku || !categoryId) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields (Name, SKU, Category)",
         variant: "destructive",
       });
       return;
     }
 
-    const productData: CreateProductDto = {
-      name,
-      sku,
-      description: description || undefined,
-      shortDescription: shortDescription || undefined,
-      price: parseFloat(price),
-      compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : undefined,
-      stockStatus,
-      quantity: parseInt(quantity),
-      categoryId,
-      weight: weight ? parseFloat(weight) : undefined,
-      length: length ? parseFloat(length) : undefined,
-      width: width ? parseFloat(width) : undefined,
-      height: height ? parseFloat(height) : undefined,
-      isActive,
-      isFeatured,
-    };
-
-    createProductMutation.mutate(productData);
+    if (productId) {
+      updateProductMutation.mutate({
+        name,
+        sku,
+        description: description || undefined,
+        shortDescription: shortDescription || undefined,
+        categoryId,
+        weight: weight ? parseFloat(weight) : undefined,
+        length: length ? parseFloat(length) : undefined,
+        width: width ? parseFloat(width) : undefined,
+        height: height ? parseFloat(height) : undefined,
+        isActive,
+        isFeatured,
+      });
+    } else {
+      const productData: CreateProductDto = {
+        name,
+        sku,
+        description: description || undefined,
+        shortDescription: shortDescription || undefined,
+        price: price ? parseFloat(price) : undefined,
+        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : undefined,
+        stockStatus: stockStatus || undefined,
+        quantity: quantity ? parseInt(quantity) : undefined,
+        categoryId,
+        productType: "Simple",
+        canBeSoldSeparately: true,
+        weight: weight ? parseFloat(weight) : undefined,
+        length: length ? parseFloat(length) : undefined,
+        width: width ? parseFloat(width) : undefined,
+        height: height ? parseFloat(height) : undefined,
+        isActive,
+        isFeatured,
+      };
+      createProductMutation.mutate(productData);
+    }
   };
 
-  const isLoading = createProductMutation.isPending;
+  const isLoading = createProductMutation.isPending || updateProductMutation.isPending;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -182,73 +217,6 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
               placeholder="Detailed product description"
               rows={5}
             />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pricing & Inventory */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pricing & Inventory</CardTitle>
-          <CardDescription>
-            Set pricing and manage stock
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0.00"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="compareAtPrice">Compare at Price</Label>
-              <Input
-                id="compareAtPrice"
-                type="number"
-                step="0.01"
-                value={compareAtPrice}
-                onChange={(e) => setCompareAtPrice(e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="stockStatus">Stock Status *</Label>
-              <Select value={stockStatus} onValueChange={setStockStatus}>
-                <SelectTrigger id="stockStatus">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="InStock">In Stock</SelectItem>
-                  <SelectItem value="LowStock">Low Stock</SelectItem>
-                  <SelectItem value="OutOfStock">Out of Stock</SelectItem>
-                  <SelectItem value="Discontinued">Discontinued</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="0"
-                required
-              />
-            </div>
           </div>
         </CardContent>
       </Card>

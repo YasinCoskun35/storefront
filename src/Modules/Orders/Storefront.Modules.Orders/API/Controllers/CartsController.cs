@@ -9,7 +9,7 @@ namespace Storefront.Modules.Orders.API.Controllers;
 
 [ApiController]
 [Route("api/partner/cart")]
-[Authorize] // Partner authentication
+[Authorize]
 public class CartsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -19,9 +19,6 @@ public class CartsController : ControllerBase
         _mediator = mediator;
     }
 
-    /// <summary>
-    /// Get partner's shopping cart
-    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetCart()
     {
@@ -36,15 +33,44 @@ public class CartsController : ControllerBase
             : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
     }
 
-    /// <summary>
-    /// Add item to cart
-    /// </summary>
+    [HttpDelete("items/{itemId}")]
+    public async Task<IActionResult> RemoveFromCart(string itemId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("User ID not found");
+
+        var command = new RemoveCartItemCommand(userId, itemId);
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? NoContent()
+            : result.Error.Type == "NotFound"
+                ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
+                : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
+
+    [HttpPatch("items/{itemId}")]
+    public async Task<IActionResult> UpdateCartItemQuantity(string itemId, [FromBody] UpdateQuantityRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("User ID not found");
+
+        var command = new UpdateCartItemQuantityCommand(userId, itemId, request.Quantity);
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Ok(new { message = "Quantity updated" })
+            : result.Error.Type == "NotFound"
+                ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
+                : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
+
     [HttpPost("items")]
     public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest request)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? throw new UnauthorizedAccessException("User ID not found");
-        
+
         var companyId = User.FindFirst("companyId")?.Value
             ?? throw new UnauthorizedAccessException("Company ID not found");
 
@@ -56,11 +82,7 @@ public class CartsController : ControllerBase
             request.ProductSKU,
             request.ProductImageUrl,
             request.Quantity,
-            request.ColorChartId,
-            request.ColorChartName,
-            request.ColorOptionId,
-            request.ColorOptionName,
-            request.ColorOptionCode,
+            request.SelectedVariants,
             request.CustomizationNotes
         );
 
@@ -72,16 +94,14 @@ public class CartsController : ControllerBase
     }
 }
 
+public record UpdateQuantityRequest(int Quantity);
+
 public record AddToCartRequest(
     string ProductId,
     string ProductName,
     string ProductSKU,
     string? ProductImageUrl,
     int Quantity,
-    string? ColorChartId,
-    string? ColorChartName,
-    string? ColorOptionId,
-    string? ColorOptionName,
-    string? ColorOptionCode,
+    string? SelectedVariants,
     string? CustomizationNotes
 );

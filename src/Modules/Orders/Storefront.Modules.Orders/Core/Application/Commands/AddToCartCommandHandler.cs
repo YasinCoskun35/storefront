@@ -17,10 +17,9 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
 
     public async Task<Result<string>> Handle(AddToCartCommand request, CancellationToken cancellationToken)
     {
-        // Get or create cart for this partner user
         var cart = await _context.Carts
             .Include(c => c.Items)
-            .FirstOrDefaultAsync(c => c.PartnerUserId == request.PartnerUserId && c.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(c => c.PartnerUserId == request.PartnerUserId, cancellationToken);
 
         if (cart is null)
         {
@@ -33,21 +32,24 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
             };
             _context.Carts.Add(cart);
         }
+        else if (!cart.IsActive)
+        {
+            cart.IsActive = true;
+            cart.UpdatedAt = DateTime.UtcNow;
+        }
 
-        // Check if same product + color already in cart
+        // Match on product + selected variants combination
         var existingItem = cart.Items.FirstOrDefault(i =>
             i.ProductId == request.ProductId &&
-            i.ColorOptionId == request.ColorOptionId);
+            i.SelectedVariants == request.SelectedVariants);
 
         if (existingItem is not null)
         {
-            // Update quantity instead of adding duplicate
             existingItem.Quantity += request.Quantity;
             existingItem.UpdatedAt = DateTime.UtcNow;
         }
         else
         {
-            // Add new item
             var cartItem = new CartItem
             {
                 CartId = cart.Id,
@@ -56,11 +58,7 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
                 ProductSKU = request.ProductSKU,
                 ProductImageUrl = request.ProductImageUrl,
                 Quantity = request.Quantity,
-                ColorChartId = request.ColorChartId,
-                ColorChartName = request.ColorChartName,
-                ColorOptionId = request.ColorOptionId,
-                ColorOptionName = request.ColorOptionName,
-                ColorOptionCode = request.ColorOptionCode,
+                SelectedVariants = request.SelectedVariants,
                 CustomizationNotes = request.CustomizationNotes,
                 CreatedAt = DateTime.UtcNow
             };

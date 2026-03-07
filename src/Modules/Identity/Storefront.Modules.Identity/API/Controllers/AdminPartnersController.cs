@@ -7,7 +7,7 @@ using Storefront.Modules.Identity.Core.Application.Queries;
 namespace Storefront.Modules.Identity.API.Controllers;
 
 [ApiController]
-[Route("api/admin/partners")]
+[Route("api/identity/admin/partners")]
 [Authorize(Roles = "Admin")]
 public class AdminPartnersController : ControllerBase
 {
@@ -115,6 +115,33 @@ public class AdminPartnersController : ControllerBase
     }
 
     /// <summary>
+    /// Add a user to an existing partner company (admin only)
+    /// </summary>
+    [HttpPost("{id}/users")]
+    public async Task<IActionResult> AddPartnerUser(string id, [FromBody] AddPartnerUserRequest request)
+    {
+        var command = new AddPartnerUserCommand(
+            id,
+            request.FirstName,
+            request.LastName,
+            request.Email,
+            request.Password,
+            request.Role
+        );
+
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Created($"/api/identity/admin/partners/{id}/users/{result.Value}", new { id = result.Value })
+            : result.Error.Type switch
+            {
+                "NotFound" => NotFound(new { error = result.Error.Code, message = result.Error.Message }),
+                "Conflict" => Conflict(new { error = result.Error.Code, message = result.Error.Message }),
+                _ => BadRequest(new { error = result.Error.Code, message = result.Error.Message })
+            };
+    }
+
+    /// <summary>
     /// Suspend partner account (admin only)
     /// </summary>
     [HttpPut("{id}/suspend")]
@@ -129,6 +156,49 @@ public class AdminPartnersController : ControllerBase
         return result.IsSuccess
             ? Ok(new { message = "Partner suspended successfully" })
             : result.Error.Code == "Partner.NotFound"
+                ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
+                : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
+
+    /// <summary>
+    /// Update a partner user's details (admin only)
+    /// </summary>
+    [HttpPut("users/{userId}")]
+    public async Task<IActionResult> UpdatePartnerUser(string userId, [FromBody] UpdatePartnerUserRequest request)
+    {
+        var command = new UpdatePartnerUserCommand(
+            userId,
+            request.FirstName,
+            request.LastName,
+            request.Phone,
+            request.Role,
+            request.IsActive
+        );
+
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Ok(new { message = "User updated successfully" })
+            : result.Error.Type switch
+            {
+                "NotFound" => NotFound(new { error = result.Error.Code, message = result.Error.Message }),
+                "Validation" => BadRequest(new { error = result.Error.Code, message = result.Error.Message }),
+                _ => BadRequest(new { error = result.Error.Code, message = result.Error.Message })
+            };
+    }
+
+    /// <summary>
+    /// Reset a partner user's password (admin only)
+    /// </summary>
+    [HttpPut("users/{userId}/reset-password")]
+    public async Task<IActionResult> ResetPartnerUserPassword(string userId, [FromBody] ResetPasswordRequest request)
+    {
+        var command = new ResetPartnerUserPasswordCommand(userId, request.NewPassword);
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Ok(new { message = "Password reset successfully" })
+            : result.Error.Type == "NotFound"
                 ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
                 : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
     }
@@ -159,3 +229,21 @@ public record AdminUserDto(
     string Email,
     string Password
 );
+
+public record AddPartnerUserRequest(
+    string FirstName,
+    string LastName,
+    string Email,
+    string Password,
+    string Role
+);
+
+public record UpdatePartnerUserRequest(
+    string FirstName,
+    string LastName,
+    string? Phone,
+    string Role,
+    bool IsActive
+);
+
+public record ResetPasswordRequest(string NewPassword);

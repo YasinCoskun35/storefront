@@ -1,35 +1,8 @@
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { api } from '../api';
 
 // ============================================
 // Types
 // ============================================
-
-export interface ColorChart {
-  id: string;
-  name: string;
-  code: string;
-  description: string;
-  type: string;
-  mainImageUrl?: string;
-  thumbnailUrl?: string;
-  isActive: boolean;
-  createdAt: string;
-}
-
-export interface ColorOption {
-  id: string;
-  colorChartId: string;
-  name: string;
-  code: string;
-  hexColor?: string;
-  imageUrl?: string;
-  isAvailable: boolean;
-  stockLevel: number;
-  priceAdjustment?: number;
-  displayOrder: number;
-}
 
 export interface CartItem {
   id: string;
@@ -38,11 +11,7 @@ export interface CartItem {
   productSKU: string;
   productImageUrl?: string;
   quantity: number;
-  colorChartId?: string;
-  colorChartName?: string;
-  colorOptionId?: string;
-  colorOptionName?: string;
-  colorOptionCode?: string;
+  selectedVariants?: string | null;
   customizationNotes?: string;
 }
 
@@ -59,10 +28,7 @@ export interface OrderItem {
   productSKU: string;
   productImageUrl?: string;
   quantity: number;
-  colorChartName?: string;
-  colorOptionName?: string;
-  colorOptionCode?: string;
-  colorOptionImageUrl?: string;
+  selectedVariants?: string | null;
   unitPrice?: number;
   discount?: number;
   totalPrice?: number;
@@ -140,37 +106,15 @@ export interface AddToCartRequest {
   productSKU: string;
   productImageUrl?: string;
   quantity: number;
-  colorChartId?: string;
-  colorChartName?: string;
-  colorOptionId?: string;
-  colorOptionName?: string;
-  colorOptionCode?: string;
+  selectedVariants?: string;
   customizationNotes?: string;
 }
 
 export interface AddCommentRequest {
   content: string;
-  type: number; // CommentType enum
+  type: number;
   attachmentUrl?: string;
   attachmentFileName?: string;
-}
-
-export interface CreateColorChartRequest {
-  name: string;
-  code: string;
-  description: string;
-  type: string;
-  mainImageUrl?: string;
-  thumbnailUrl?: string;
-}
-
-export interface AddColorOptionRequest {
-  name: string;
-  code: string;
-  hexColor?: string;
-  imageUrl?: string;
-  priceAdjustment?: number;
-  displayOrder: number;
 }
 
 // ============================================
@@ -180,18 +124,21 @@ export interface AddColorOptionRequest {
 export const partnerOrdersApi = {
   // Cart
   async getCart() {
-    const response = await axios.get<Cart>(`${API_URL}/api/partner/cart`, {
-      withCredentials: true,
-    });
+    const response = await api.get<Cart>('/api/partner/cart');
     return response.data;
   },
 
   async addToCart(request: AddToCartRequest) {
-    const response = await axios.post(
-      `${API_URL}/api/partner/cart/items`,
-      request,
-      { withCredentials: true }
-    );
+    const response = await api.post('/api/partner/cart/items', request);
+    return response.data;
+  },
+
+  async removeCartItem(itemId: string) {
+    await api.delete(`/api/partner/cart/items/${itemId}`);
+  },
+
+  async updateCartItemQuantity(itemId: string, quantity: number) {
+    const response = await api.patch(`/api/partner/cart/items/${itemId}`, { quantity });
     return response.data;
   },
 
@@ -201,36 +148,32 @@ export const partnerOrdersApi = {
     pageNumber?: number;
     pageSize?: number;
   }) {
-    const response = await axios.get(`${API_URL}/api/partner/orders`, {
-      params,
-      withCredentials: true,
-    });
+    const response = await api.get('/api/partner/orders', { params });
     return response.data;
   },
 
   async getOrderDetails(orderId: string) {
-    const response = await axios.get<OrderDetails>(
-      `${API_URL}/api/partner/orders/${orderId}`,
-      { withCredentials: true }
-    );
+    const response = await api.get<OrderDetails>(`/api/partner/orders/${orderId}`);
     return response.data;
   },
 
   async createOrder(request: CreateOrderRequest) {
-    const response = await axios.post(
-      `${API_URL}/api/partner/orders`,
-      request,
-      { withCredentials: true }
-    );
+    const response = await api.post('/api/partner/orders', request);
     return response.data;
   },
 
   async addComment(orderId: string, request: AddCommentRequest) {
-    const response = await axios.post(
-      `${API_URL}/api/partner/orders/${orderId}/comments`,
-      request,
-      { withCredentials: true }
-    );
+    const response = await api.post(`/api/partner/orders/${orderId}/comments`, request);
+    return response.data;
+  },
+
+  async getStats(): Promise<{ totalOrders: number; pendingOrders: number; activeOrders: number; completedOrders: number }> {
+    const response = await api.get('/api/partner/orders/stats');
+    return response.data;
+  },
+
+  async cancelOrder(orderId: string, reason: string) {
+    const response = await api.post(`/api/partner/orders/${orderId}/cancel`, { reason });
     return response.data;
   },
 };
@@ -240,6 +183,12 @@ export const partnerOrdersApi = {
 // ============================================
 
 export const adminOrdersApi = {
+  // Stats
+  async getStats(): Promise<{ totalOrders: number; pendingOrders: number; activeOrders: number; completedOrders: number; totalPartners: number }> {
+    const response = await api.get('/api/admin/orders/stats');
+    return response.data;
+  },
+
   // Orders
   async getOrders(params?: {
     status?: string;
@@ -247,31 +196,29 @@ export const adminOrdersApi = {
     pageNumber?: number;
     pageSize?: number;
   }) {
-    const response = await axios.get(`${API_URL}/api/admin/orders`, {
-      params,
-      withCredentials: true,
-    });
+    const response = await api.get('/api/admin/orders', { params });
     return response.data;
   },
 
   async getOrderDetails(orderId: string) {
-    const response = await axios.get<OrderDetails>(
-      `${API_URL}/api/admin/orders/${orderId}`,
-      { withCredentials: true }
-    );
+    const response = await api.get<OrderDetails>(`/api/admin/orders/${orderId}`);
     return response.data;
   },
 
-  async updateOrderStatus(
-    orderId: string,
-    newStatus: number,
-    notes?: string
-  ) {
-    const response = await axios.put(
-      `${API_URL}/api/admin/orders/${orderId}/status`,
-      { newStatus, notes },
-      { withCredentials: true }
-    );
+  async updateOrderStatus(orderId: string, newStatus: number, notes?: string) {
+    const response = await api.put(`/api/admin/orders/${orderId}/status`, { newStatus, notes });
+    return response.data;
+  },
+
+  async setOrderPricing(orderId: string, pricing: {
+    items: { orderItemId: string; unitPrice: number; discount?: number }[];
+    shippingCost?: number;
+    taxAmount?: number;
+    discount?: number;
+    currency?: string;
+    notes?: string;
+  }) {
+    const response = await api.put(`/api/admin/orders/${orderId}/pricing`, pricing);
     return response.data;
   },
 
@@ -283,30 +230,19 @@ export const adminOrdersApi = {
     attachmentUrl?: string,
     attachmentFileName?: string
   ) {
-    const response = await axios.post(
-      `${API_URL}/api/admin/orders/${orderId}/comments`,
-      { content, type, isInternal, attachmentUrl, attachmentFileName },
-      { withCredentials: true }
-    );
+    const response = await api.post(`/api/admin/orders/${orderId}/comments`, {
+      content, type, isInternal, attachmentUrl, attachmentFileName,
+    });
     return response.data;
   },
 
-  // Color Charts
-  async createColorChart(request: CreateColorChartRequest) {
-    const response = await axios.post(
-      `${API_URL}/api/admin/color-charts`,
-      request,
-      { withCredentials: true }
-    );
-    return response.data;
-  },
-
-  async addColorOption(chartId: string, request: AddColorOptionRequest) {
-    const response = await axios.post(
-      `${API_URL}/api/admin/color-charts/${chartId}/options`,
-      request,
-      { withCredentials: true }
-    );
+  async updateShipping(orderId: string, data: {
+    trackingNumber: string;
+    shippingProvider: string;
+    expectedDeliveryDate?: string;
+    shippingNotes?: string;
+  }) {
+    const response = await api.put(`/api/admin/orders/${orderId}/shipping`, data);
     return response.data;
   },
 };

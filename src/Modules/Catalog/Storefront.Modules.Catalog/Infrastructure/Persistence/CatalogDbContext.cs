@@ -15,6 +15,9 @@ public class CatalogDbContext : DbContext
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<ProductBundleItem> ProductBundleItems => Set<ProductBundleItem>();
+    public DbSet<VariantGroup> VariantGroups => Set<VariantGroup>();
+    public DbSet<VariantOption> VariantOptions => Set<VariantOption>();
+    public DbSet<ProductVariantGroup> ProductVariantGroups => Set<ProductVariantGroup>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -31,6 +34,9 @@ public class CatalogDbContext : DbContext
         ConfigureBrand(builder);
         ConfigureProductImage(builder);
         ConfigureProductBundleItem(builder);
+        ConfigureVariantGroup(builder);
+        ConfigureVariantOption(builder);
+        ConfigureProductVariantGroup(builder);
     }
 
     private static void ConfigureProduct(ModelBuilder builder)
@@ -67,6 +73,12 @@ public class CatalogDbContext : DbContext
             entity.Property(p => p.StockStatus)
                 .HasConversion<string>()
                 .HasMaxLength(50);
+                
+            entity.Property(p => p.Quantity)
+                .HasColumnName("StockQuantity");
+                
+            entity.Property(p => p.LowStockThreshold)
+                .IsRequired(false);
                 
             entity.Property(p => p.ProductType)
                 .HasConversion<string>()
@@ -134,6 +146,7 @@ public class CatalogDbContext : DbContext
             entity.Property(c => c.Description).HasMaxLength(2000);
             entity.Property(c => c.Slug).HasMaxLength(200);
             entity.Property(c => c.ImageUrl).HasMaxLength(500);
+            entity.Property(c => c.ShowInNavbar).HasDefaultValue(false);
 
             // Self-referencing relationship
             entity.HasOne(c => c.Parent)
@@ -197,13 +210,78 @@ public class CatalogDbContext : DbContext
             entity.ToTable("ProductBundleItems");
             entity.HasKey(bi => bi.Id);
             entity.Property(bi => bi.Id).HasMaxLength(450);
-            
+
             entity.Property(bi => bi.PriceOverride).HasPrecision(18, 2);
-            
-            // Indexes
+
             entity.HasIndex(bi => bi.BundleProductId);
             entity.HasIndex(bi => bi.ComponentProductId);
             entity.HasIndex(bi => new { bi.BundleProductId, bi.DisplayOrder });
+        });
+    }
+
+    private static void ConfigureVariantGroup(ModelBuilder builder)
+    {
+        builder.Entity<VariantGroup>(entity =>
+        {
+            entity.ToTable("VariantGroups");
+            entity.HasKey(vg => vg.Id);
+            entity.Property(vg => vg.Id).HasMaxLength(450);
+
+            entity.Property(vg => vg.Name).IsRequired().HasMaxLength(200);
+            entity.Property(vg => vg.Description).IsRequired().HasMaxLength(2000).HasDefaultValue(string.Empty);
+            entity.Property(vg => vg.DisplayType).IsRequired().HasMaxLength(50).HasDefaultValue("Swatch");
+
+            entity.HasIndex(vg => vg.IsActive);
+            entity.HasIndex(vg => vg.DisplayType);
+            entity.HasIndex(vg => vg.DisplayOrder);
+        });
+    }
+
+    private static void ConfigureVariantOption(ModelBuilder builder)
+    {
+        builder.Entity<VariantOption>(entity =>
+        {
+            entity.ToTable("VariantOptions");
+            entity.HasKey(vo => vo.Id);
+            entity.Property(vo => vo.Id).HasMaxLength(450);
+
+            entity.Property(vo => vo.VariantGroupId).IsRequired().HasMaxLength(450);
+            entity.Property(vo => vo.Name).IsRequired().HasMaxLength(200);
+            entity.Property(vo => vo.Code).IsRequired().HasMaxLength(100);
+            entity.Property(vo => vo.HexColor).HasMaxLength(10);
+            entity.Property(vo => vo.ImageUrl).HasMaxLength(1000);
+            entity.Property(vo => vo.PriceAdjustment).HasColumnType("decimal(18,2)");
+
+            entity.HasOne(vo => vo.VariantGroup)
+                .WithMany(vg => vg.Options)
+                .HasForeignKey(vo => vo.VariantGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(vo => vo.VariantGroupId);
+            entity.HasIndex(vo => new { vo.VariantGroupId, vo.Code }).IsUnique();
+            entity.HasIndex(vo => vo.IsAvailable);
+        });
+    }
+
+    private static void ConfigureProductVariantGroup(ModelBuilder builder)
+    {
+        builder.Entity<ProductVariantGroup>(entity =>
+        {
+            entity.ToTable("ProductVariantGroups");
+            entity.HasKey(pvg => pvg.Id);
+            entity.Property(pvg => pvg.Id).HasMaxLength(450);
+
+            entity.Property(pvg => pvg.ProductId).IsRequired().HasMaxLength(450);
+            entity.Property(pvg => pvg.VariantGroupId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(pvg => pvg.VariantGroup)
+                .WithMany(vg => vg.ProductVariantGroups)
+                .HasForeignKey(pvg => pvg.VariantGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(pvg => pvg.ProductId);
+            entity.HasIndex(pvg => pvg.VariantGroupId);
+            entity.HasIndex(pvg => new { pvg.ProductId, pvg.VariantGroupId }).IsUnique();
         });
     }
 }

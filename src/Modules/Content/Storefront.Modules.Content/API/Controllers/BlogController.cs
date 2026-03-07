@@ -18,6 +18,38 @@ public sealed class BlogController : ControllerBase
     }
 
     /// <summary>
+    /// Public endpoint: Get single blog post by slug
+    /// </summary>
+    [HttpGet("{slug}")]
+    public async Task<IActionResult> GetBlogPostBySlug(string slug, CancellationToken cancellationToken)
+    {
+        var post = await _mediator.Send(new GetBlogPostBySlugQuery(slug), cancellationToken);
+
+        return post.IsSuccess
+            ? Ok(post.Value)
+            : NotFound(new { error = post.Error.Code, message = post.Error.Message });
+    }
+
+    /// <summary>
+    /// Admin: Get all posts (including drafts)
+    /// </summary>
+    [HttpGet("admin/all")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllBlogPosts(
+        [FromQuery] string? category,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetBlogPostsQuery(category, null, IsPublished: null, pageNumber, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : StatusCode(500, new { error = result.Error.Code, message = result.Error.Message });
+    }
+
+    /// <summary>
     /// Public endpoint: Get paginated list of blog posts
     /// </summary>
     [HttpGet]
@@ -90,6 +122,22 @@ public sealed class BlogController : ControllerBase
         }
 
         return Ok(new { id = result.Value });
+    }
+
+    /// <summary>
+    /// Admin endpoint: Delete blog post
+    /// </summary>
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteBlogPost(string id, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new DeleteBlogPostCommand(id), cancellationToken);
+
+        return result.IsSuccess
+            ? NoContent()
+            : result.Error.Type == "NotFound"
+                ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
+                : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
     }
 }
 

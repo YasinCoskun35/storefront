@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { HomeSlidersSection } from "@/components/home/home-sliders-section";
 
 export default function HomePage() {
   return (
-    <div className="container mx-auto px-4 py-16">
+    <div>
+      {/* Sliders - B2C & Storefront only, configurable via Features.HomeSliders.Enabled */}
+      <HomeSlidersSection />
+
+      <div className="container mx-auto px-4 py-16">
       {/* Hero Section */}
       <section className="text-center space-y-6 py-12">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
@@ -62,6 +67,7 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+      </div>
     </div>
   );
 }

@@ -93,23 +93,13 @@ public class PartnerLoginCommandHandler : IRequestHandler<PartnerLoginCommand, R
 
         // Generate JWT token
         var accessToken = GenerateAccessToken(user);
-        
-        // Generate refresh token
-        var refreshToken = new RefreshToken
-        {
-            Id = Guid.NewGuid().ToString(),
-            Token = Guid.NewGuid().ToString(),
-            UserId = user.Id,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow
-        };
 
-        _context.RefreshTokens.Add(refreshToken);
-        await _context.SaveChangesAsync(cancellationToken);
+        // Generate refresh token string (not persisted — PartnerUsers are separate from ApplicationUsers)
+        var refreshTokenValue = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
 
         var response = new PartnerLoginResponse(
             accessToken,
-            refreshToken.Token,
+            refreshTokenValue,
             1800, // 30 minutes
             new PartnerUserInfo(
                 user.Id,
@@ -141,8 +131,10 @@ public class PartnerLoginCommandHandler : IRequestHandler<PartnerLoginCommand, R
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.GivenName, user.FirstName),
             new Claim(JwtRegisteredClaimNames.FamilyName, user.LastName),
+            new Claim(ClaimTypes.Role, "Partner"),
             new Claim("role", user.Role.ToString()),
             new Claim("companyId", user.PartnerCompanyId),
+            new Claim("companyName", user.Company.CompanyName),
             new Claim("type", "Partner"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };

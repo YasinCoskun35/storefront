@@ -52,19 +52,37 @@ export function CartItemCard({
           )}
         </div>
 
-        {item.colorOptionName && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-gray-500">Color:</span>
-            <div className="flex items-center gap-2">
-              {item.colorOptionCode && (
-                <span className="text-xs font-medium text-gray-700">
-                  {item.colorOptionCode}
-                </span>
-              )}
-              <span className="text-xs text-gray-700">{item.colorOptionName}</span>
-            </div>
-          </div>
-        )}
+        {item.selectedVariants && (() => {
+          try {
+            const variants = JSON.parse(item.selectedVariants) as Array<{
+              groupName: string;
+              optionName: string;
+              optionCode: string;
+              hexColor?: string;
+            }>;
+            return variants.length > 0 ? (
+              <div className="mt-2 space-y-1">
+                {variants.map((v, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">{v.groupName}:</span>
+                    {v.hexColor && (
+                      <div
+                        className="h-3 w-3 rounded-full border flex-shrink-0"
+                        style={{ backgroundColor: v.hexColor }}
+                      />
+                    )}
+                    <span className="text-xs text-gray-700">{v.optionName}</span>
+                    {v.optionCode && (
+                      <span className="text-xs text-gray-500 font-mono">({v.optionCode})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          } catch {
+            return null;
+          }
+        })()}
 
         {item.customizationNotes && (
           <div className="mt-2">

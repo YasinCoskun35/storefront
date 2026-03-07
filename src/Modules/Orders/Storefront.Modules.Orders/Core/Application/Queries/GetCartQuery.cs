@@ -18,10 +18,6 @@ public record CartItemDto(
     string ProductSKU,
     string? ProductImageUrl,
     int Quantity,
-    string? ColorChartId,
-    string? ColorChartName,
-    string? ColorOptionId,
-    string? ColorOptionName,
-    string? ColorOptionCode,
+    string? SelectedVariants,
     string? CustomizationNotes
 );

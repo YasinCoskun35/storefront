@@ -1,9 +1,9 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Storefront.Modules.Catalog.Core.Application.Utilities;
 using Storefront.Modules.Catalog.Core.Domain.Entities;
 using Storefront.Modules.Catalog.Infrastructure.Persistence;
 using Storefront.SharedKernel;
-using System.Text.RegularExpressions;
 
 namespace Storefront.Modules.Catalog.Core.Application.Commands;
 
@@ -20,8 +20,8 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
     {
         // Generate slug if not provided
         var slug = string.IsNullOrWhiteSpace(request.Slug)
-            ? GenerateSlug(request.Name)
-            : GenerateSlug(request.Slug);
+            ? SlugGenerator.Generate(request.Name)
+            : SlugGenerator.Generate(request.Slug);
 
         // Check if slug already exists
         var slugExists = await _context.Categories
@@ -57,6 +57,7 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
             ParentId = request.ParentId,
             DisplayOrder = request.DisplayOrder,
             IsActive = request.IsActive,
+            ShowInNavbar = request.ShowInNavbar,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -64,26 +65,6 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
         await _context.SaveChangesAsync(cancellationToken);
 
         return Result<string>.Success(category.Id);
-    }
-
-    private static string GenerateSlug(string text)
-    {
-        // Convert to lowercase
-        var slug = text.ToLowerInvariant();
-
-        // Remove invalid characters
-        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
-
-        // Convert multiple spaces into one space
-        slug = Regex.Replace(slug, @"\s+", " ").Trim();
-
-        // Replace spaces with hyphens
-        slug = slug.Replace(" ", "-");
-
-        // Remove multiple hyphens
-        slug = Regex.Replace(slug, @"-+", "-");
-
-        return slug;
     }
 }
 

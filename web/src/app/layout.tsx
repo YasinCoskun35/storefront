@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
+import { ConditionalPublicLayout } from "@/components/layout/conditional-public-layout";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/lib/auth-context";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -21,8 +20,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Storefront - Quality Hardware & Tools",
-  description: "Your trusted hardware store for quality tools and equipment.",
+  title: "Storefront - Profesyonel Mobilya Çözümleri",
+  description: "B2B mobilya kataloğu — ürünleri keşfedin, sipariş oluşturun.",
 };
 
 export default function RootLayout({
@@ -31,15 +30,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
+    <html lang="tr" className={`${inter.variable} ${poppins.variable}`}>
       <body className="font-sans antialiased">
         <AuthProvider>
           <QueryProvider>
-            <div className="flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+            <ConditionalPublicLayout>{children}</ConditionalPublicLayout>
             <Toaster />
           </QueryProvider>
         </AuthProvider>
@@ -47,4 +42,3 @@ export default function RootLayout({
     </html>
   );
 }
-

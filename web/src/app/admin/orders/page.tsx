@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { adminOrdersApi } from "@/lib/api/orders";
+import { adminOrdersApi, OrderSummary } from "@/lib/api/orders";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Package, Search, ChevronRight, Filter } from "lucide-react";
+import { Package, Search, ChevronRight } from "lucide-react";
 
 export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -24,7 +24,7 @@ export default function AdminOrdersPage() {
       }),
   });
 
-  const orders = ordersResponse?.items || [];
+  const orders: OrderSummary[] = ordersResponse?.items || [];
 
   // Filter orders by search term
   const filteredOrders = orders.filter((order) =>
@@ -103,7 +103,7 @@ export default function AdminOrdersPage() {
       {/* Orders List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
         </div>
       ) : filteredOrders.length === 0 ? (
         <Card className="p-12 text-center">

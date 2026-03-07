@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { partnerAdminApi, PartnerCompany } from '@/lib/api/partners';
+import { partnerAdminApi } from '@/lib/api/partners';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -138,7 +138,7 @@ export default function AdminPartnersPage() {
       <div className="bg-white rounded-lg shadow-sm">
         {isLoading ? (
           <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
             <p className="mt-4 text-gray-600">Loading partners...</p>
           </div>
         ) : error ? (

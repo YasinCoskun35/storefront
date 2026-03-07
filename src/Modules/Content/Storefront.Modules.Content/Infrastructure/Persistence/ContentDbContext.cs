@@ -11,6 +11,10 @@ public class ContentDbContext : DbContext
 
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<StaticPage> StaticPages => Set<StaticPage>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<HeroSlide> HeroSlides => Set<HeroSlide>();
+    public DbSet<HomeCategorySlide> HomeCategorySlides => Set<HomeCategorySlide>();
+    public DbSet<FeaturedBrand> FeaturedBrands => Set<FeaturedBrand>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -21,6 +25,10 @@ public class ContentDbContext : DbContext
 
         ConfigureBlogPost(builder);
         ConfigureStaticPage(builder);
+        ConfigureAppSetting(builder);
+        ConfigureHeroSlide(builder);
+        ConfigureHomeCategorySlide(builder);
+        ConfigureFeaturedBrand(builder);
     }
 
     private static void ConfigureBlogPost(ModelBuilder builder)
@@ -86,6 +94,71 @@ public class ContentDbContext : DbContext
             entity.HasIndex(sp => sp.Slug).IsUnique();
             entity.HasIndex(sp => sp.IsPublished);
             entity.HasIndex(sp => sp.DisplayOrder);
+        });
+    }
+
+    private static void ConfigureAppSetting(ModelBuilder builder)
+    {
+        builder.Entity<AppSetting>(entity =>
+        {
+            entity.ToTable("AppSettings");
+            entity.HasKey(s => s.Key);
+            entity.Property(s => s.Key).HasMaxLength(100);
+
+            entity.Property(s => s.Value).IsRequired().HasMaxLength(2000);
+            entity.Property(s => s.DisplayName).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.Description).HasMaxLength(500);
+            entity.Property(s => s.Category).IsRequired().HasMaxLength(50);
+            entity.Property(s => s.DataType).IsRequired().HasMaxLength(20);
+            entity.Property(s => s.UpdatedBy).HasMaxLength(450);
+
+            // Index for faster category lookups
+            entity.HasIndex(s => s.Category);
+        });
+    }
+
+    private static void ConfigureHeroSlide(ModelBuilder builder)
+    {
+        builder.Entity<HeroSlide>(entity =>
+        {
+            entity.ToTable("HeroSlides");
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).HasMaxLength(450);
+            entity.Property(s => s.Title).IsRequired().HasMaxLength(500);
+            entity.Property(s => s.Subtitle).HasMaxLength(500);
+            entity.Property(s => s.ImageUrl).IsRequired().HasMaxLength(1000);
+            entity.Property(s => s.Link).IsRequired().HasMaxLength(500);
+            entity.Property(s => s.LinkText).IsRequired().HasMaxLength(100);
+            entity.HasIndex(s => s.DisplayOrder);
+        });
+    }
+
+    private static void ConfigureHomeCategorySlide(ModelBuilder builder)
+    {
+        builder.Entity<HomeCategorySlide>(entity =>
+        {
+            entity.ToTable("HomeCategorySlides");
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).HasMaxLength(450);
+            entity.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.Slug).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.ImageUrl).IsRequired().HasMaxLength(1000);
+            entity.Property(s => s.Link).IsRequired().HasMaxLength(500);
+            entity.HasIndex(s => s.DisplayOrder);
+        });
+    }
+
+    private static void ConfigureFeaturedBrand(ModelBuilder builder)
+    {
+        builder.Entity<FeaturedBrand>(entity =>
+        {
+            entity.ToTable("FeaturedBrands");
+            entity.HasKey(b => b.Id);
+            entity.Property(b => b.Id).HasMaxLength(450);
+            entity.Property(b => b.Name).IsRequired().HasMaxLength(200);
+            entity.Property(b => b.LogoUrl).HasMaxLength(1000);
+            entity.Property(b => b.Link).IsRequired().HasMaxLength(500);
+            entity.HasIndex(b => b.DisplayOrder);
         });
     }
 }

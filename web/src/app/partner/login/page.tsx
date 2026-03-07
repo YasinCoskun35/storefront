@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import Link from 'next/link';
 import { partnerPublicApi, PartnerLoginData } from '@/lib/api/partners';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -22,11 +22,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   CheckCircle,
+  UserPlus,
   XCircle,
   Building2,
   Mail,
@@ -45,67 +55,137 @@ const statusColors = {
   Rejected: 'bg-gray-100 text-gray-800',
 };
 
-export default function PartnerDetailsPage({ params }: { params: { id: string } }) {
+export default function PartnerDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [approvalNotes, setApprovalNotes] = useState('');
   const [suspendReason, setSuspendReason] = useState('');
+  const [newUser, setNewUser] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    role: 'User',
+  });
+  const [editUser, setEditUser] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    role: 'User',
+    isActive: true,
+  });
+  const [newPassword, setNewPassword] = useState('');
 
   const { data: partner, isLoading } = useQuery({
-    queryKey: ['admin-partner', params.id],
-    queryFn: () => partnerAdminApi.getPartnerDetails(params.id),
+    queryKey: ['admin-partner', id],
+    queryFn: () => partnerAdminApi.getPartnerDetails(id),
   });
 
   const approveMutation = useMutation({
-    mutationFn: () => partnerAdminApi.approvePartner(params.id, approvalNotes || null),
+    mutationFn: () => partnerAdminApi.approvePartner(id, approvalNotes || null),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-partner', params.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-partner', id] });
       queryClient.invalidateQueries({ queryKey: ['admin-partners'] });
-      toast({
-        title: 'Partner Approved',
-        description: 'The partner company has been approved successfully.',
-      });
+      toast.success('Partner company approved successfully');
       setApproveDialogOpen(false);
       setApprovalNotes('');
     },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to approve partner. Please try again.',
-        variant: 'destructive',
-      });
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to approve partner. Please try again.';
+      toast.error(message);
     },
   });
 
   const suspendMutation = useMutation({
-    mutationFn: () => partnerAdminApi.suspendPartner(params.id, suspendReason || null),
+    mutationFn: () => partnerAdminApi.suspendPartner(id, suspendReason || null),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-partner', params.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-partner', id] });
       queryClient.invalidateQueries({ queryKey: ['admin-partners'] });
-      toast({
-        title: 'Partner Suspended',
-        description: 'The partner company has been suspended.',
-      });
+      toast.success('Partner company suspended');
       setSuspendDialogOpen(false);
       setSuspendReason('');
     },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to suspend partner. Please try again.',
-        variant: 'destructive',
-      });
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to suspend partner. Please try again.';
+      toast.error(message);
     },
   });
+
+  const addUserMutation = useMutation({
+    mutationFn: () => partnerAdminApi.addPartnerUser(id, newUser),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner', id] });
+      toast.success('User added successfully');
+      setAddUserDialogOpen(false);
+      setNewUser({ firstName: '', lastName: '', email: '', password: '', role: 'User' });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to add user. Please try again.';
+      toast.error(message);
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: () => partnerAdminApi.updatePartnerUser(selectedUserId!, {
+      ...editUser,
+      phone: editUser.phone || undefined,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partner', id] });
+      toast.success('User updated successfully');
+      setEditUserDialogOpen(false);
+      setSelectedUserId(null);
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to update user.';
+      toast.error(message);
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: () => partnerAdminApi.resetPartnerUserPassword(selectedUserId!, newPassword),
+    onSuccess: () => {
+      toast.success('Password reset successfully');
+      setResetPasswordDialogOpen(false);
+      setNewPassword('');
+      setSelectedUserId(null);
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to reset password.';
+      toast.error(message);
+    },
+  });
+
+  function openEditUser(user: { id: string; firstName: string; lastName: string; role: string; isActive: boolean }) {
+    setSelectedUserId(user.id);
+    setEditUser({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: '',
+      role: user.role,
+      isActive: user.isActive,
+    });
+    setEditUserDialogOpen(true);
+  }
+
+  function openResetPassword(userId: string) {
+    setSelectedUserId(userId);
+    setNewPassword('');
+    setResetPasswordDialogOpen(true);
+  }
 
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
         </div>
       </div>
     );
@@ -290,30 +370,53 @@ export default function PartnerDetailsPage({ params }: { params: { id: string } 
           {/* Users */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2" />
-                Users ({partner.users.length})
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Users ({partner.users.length})
+                </CardTitle>
+                <Button size="sm" onClick={() => setAddUserDialogOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add User
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {partner.users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div>
-                      <div className="font-medium">
+                  <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium flex items-center gap-2">
                         {user.firstName} {user.lastName}
+                        {!user.isActive && (
+                          <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                        )}
                       </div>
                       <div className="text-sm text-gray-600">{user.email}</div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={user.role === 'CompanyAdmin' ? 'default' : 'secondary'}>
-                        {user.role}
-                      </Badge>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500">
                         {user.lastLoginAt
                           ? `Last login: ${new Date(user.lastLoginAt).toLocaleDateString()}`
                           : 'Never logged in'}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={user.role === 'CompanyAdmin' ? 'default' : 'secondary'}>
+                        {user.role}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditUser(user)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openResetPassword(user.id)}
+                      >
+                        Reset Password
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -452,6 +555,196 @@ export default function PartnerDetailsPage({ params }: { params: { id: string } 
               disabled={suspendMutation.isPending}
             >
               {suspendMutation.isPending ? 'Processing...' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add User Dialog */}
+      <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add User to {partner.companyName}</DialogTitle>
+            <DialogDescription>
+              Create a new user account for this partner company. They can log in immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="new-firstName">First Name *</Label>
+                <Input
+                  id="new-firstName"
+                  value={newUser.firstName}
+                  onChange={(e) => setNewUser((u) => ({ ...u, firstName: e.target.value }))}
+                  placeholder="John"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-lastName">Last Name *</Label>
+                <Input
+                  id="new-lastName"
+                  value={newUser.lastName}
+                  onChange={(e) => setNewUser((u) => ({ ...u, lastName: e.target.value }))}
+                  placeholder="Smith"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="new-email">Email Address *</Label>
+              <Input
+                id="new-email"
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser((u) => ({ ...u, email: e.target.value }))}
+                placeholder="john@company.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-password">Password *</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser((u) => ({ ...u, password: e.target.value }))}
+                placeholder="Min 8 chars, uppercase, number, special char"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-role">Role *</Label>
+              <Select
+                value={newUser.role}
+                onValueChange={(value) => setNewUser((u) => ({ ...u, role: value }))}
+              >
+                <SelectTrigger id="new-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="User">User</SelectItem>
+                  <SelectItem value="CompanyAdmin">Company Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddUserDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => addUserMutation.mutate()}
+              disabled={
+                addUserMutation.isPending ||
+                !newUser.firstName ||
+                !newUser.lastName ||
+                !newUser.email ||
+                !newUser.password
+              }
+            >
+              {addUserMutation.isPending ? 'Adding...' : 'Add User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editUserDialogOpen} onOpenChange={setEditUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update the user&apos;s details and permissions.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-firstName">First Name *</Label>
+                <Input
+                  id="edit-firstName"
+                  value={editUser.firstName}
+                  onChange={(e) => setEditUser((u) => ({ ...u, firstName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-lastName">Last Name *</Label>
+                <Input
+                  id="edit-lastName"
+                  value={editUser.lastName}
+                  onChange={(e) => setEditUser((u) => ({ ...u, lastName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={editUser.phone}
+                onChange={(e) => setEditUser((u) => ({ ...u, phone: e.target.value }))}
+                placeholder="+1-555-0100"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-role">Role *</Label>
+              <Select
+                value={editUser.role}
+                onValueChange={(value) => setEditUser((u) => ({ ...u, role: value }))}
+              >
+                <SelectTrigger id="edit-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="User">User</SelectItem>
+                  <SelectItem value="CompanyAdmin">Company Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                id="edit-isActive"
+                type="checkbox"
+                checked={editUser.isActive}
+                onChange={(e) => setEditUser((u) => ({ ...u, isActive: e.target.checked }))}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="edit-isActive">Account Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditUserDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => updateUserMutation.mutate()}
+              disabled={updateUserMutation.isPending || !editUser.firstName || !editUser.lastName}
+            >
+              {updateUserMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for this user. They can log in immediately with the new password.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="reset-password">New Password *</Label>
+            <Input
+              id="reset-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Min 8 chars, uppercase, number, special char"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => resetPasswordMutation.mutate()}
+              disabled={resetPasswordMutation.isPending || newPassword.length < 8}
+            >
+              {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
             </Button>
           </DialogFooter>
         </DialogContent>

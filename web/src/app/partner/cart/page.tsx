@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { partnerOrdersApi } from "@/lib/api/orders";
@@ -20,6 +19,24 @@ export default function PartnerCartPage() {
     queryFn: () => partnerOrdersApi.getCart(),
   });
 
+  const removeMutation = useMutation({
+    mutationFn: (itemId: string) => partnerOrdersApi.removeCartItem(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["partner-cart"] });
+      toast.success("Item removed from cart");
+    },
+    onError: () => toast.error("Failed to remove item"),
+  });
+
+  const updateQuantityMutation = useMutation({
+    mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
+      partnerOrdersApi.updateCartItemQuantity(itemId, quantity),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["partner-cart"] });
+    },
+    onError: () => toast.error("Failed to update quantity"),
+  });
+
   const handleCheckout = () => {
     if (!cart || cart.itemCount === 0) {
       toast.error("Your cart is empty");
@@ -31,7 +48,7 @@ export default function PartnerCartPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -71,12 +88,12 @@ export default function PartnerCartPage() {
                 item={item}
                 readOnly={false}
                 onRemove={(itemId) => {
-                  toast.info("Remove item feature coming soon");
-                  // TODO: Implement remove item
+                  if (window.confirm("Remove this item from cart?")) {
+                    removeMutation.mutate(itemId);
+                  }
                 }}
                 onUpdateQuantity={(itemId, quantity) => {
-                  toast.info("Update quantity feature coming soon");
-                  // TODO: Implement update quantity
+                  updateQuantityMutation.mutate({ itemId, quantity });
                 }}
               />
             ))}

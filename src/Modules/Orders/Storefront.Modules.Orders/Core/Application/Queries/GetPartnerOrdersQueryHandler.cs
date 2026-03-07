@@ -19,8 +19,17 @@ public class GetPartnerOrdersQueryHandler : IRequestHandler<GetPartnerOrdersQuer
     {
         var query = _context.Orders
             .Include(o => o.Items)
-            .Where(o => o.PartnerCompanyId == request.PartnerCompanyId)
             .AsQueryable();
+
+        // Filter by company unless admin viewing all orders
+        if (!request.AdminMode && !string.IsNullOrEmpty(request.PartnerCompanyId))
+        {
+            query = query.Where(o => o.PartnerCompanyId == request.PartnerCompanyId);
+        }
+        else if (!request.AdminMode)
+        {
+            query = query.Where(o => o.PartnerCompanyId == request.PartnerCompanyId);
+        }
 
         // Filter by status
         if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<OrderStatus>(request.Status, out var status))
@@ -45,7 +54,9 @@ public class GetPartnerOrdersQueryHandler : IRequestHandler<GetPartnerOrdersQuer
                 o.Currency,
                 o.CreatedAt,
                 o.RequestedDeliveryDate,
-                false // TODO: Calculate unread comments
+                false, // TODO: Calculate unread comments
+                o.PartnerCompanyId,
+                o.PartnerCompanyName
             ))
             .ToListAsync(cancellationToken);
 

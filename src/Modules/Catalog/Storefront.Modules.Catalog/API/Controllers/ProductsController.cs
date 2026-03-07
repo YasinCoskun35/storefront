@@ -115,6 +115,58 @@ public sealed class ProductsController : ControllerBase
             fileName = result.Value
         });
     }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(string id, [FromBody] UpdateProductRequest request, CancellationToken cancellationToken)
+    {
+        var command = new UpdateProductCommand(
+            id,
+            request.Name,
+            request.SKU,
+            request.Description,
+            request.ShortDescription,
+            request.CategoryId,
+            request.Weight,
+            request.Length,
+            request.Width,
+            request.Height,
+            request.IsActive,
+            request.IsFeatured);
+
+        var result = await _mediator.Send(command, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Type switch
+            {
+                "Conflict" => Conflict(new { error = result.Error.Code, message = result.Error.Message }),
+                "NotFound" => NotFound(new { error = result.Error.Code, message = result.Error.Message }),
+                "Validation" => BadRequest(new { error = result.Error.Code, message = result.Error.Message }),
+                _ => StatusCode(500, new { error = result.Error.Code, message = result.Error.Message })
+            };
+        }
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+    {
+        var command = new DeleteProductCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Type switch
+            {
+                "NotFound" => NotFound(new { error = result.Error.Code, message = result.Error.Message }),
+                "Conflict" => Conflict(new { error = result.Error.Code, message = result.Error.Message }),
+                _ => StatusCode(500, new { error = result.Error.Code, message = result.Error.Message })
+            };
+        }
+
+        return NoContent();
+    }
     
     // Bundle-specific endpoints
     
@@ -190,6 +242,20 @@ public sealed class ProductsController : ControllerBase
 }
 
 // Request DTOs
+public sealed record UpdateProductRequest(
+    string Name,
+    string SKU,
+    string? Description,
+    string? ShortDescription,
+    string CategoryId,
+    decimal? Weight,
+    decimal? Length,
+    decimal? Width,
+    decimal? Height,
+    bool IsActive,
+    bool IsFeatured
+);
+
 public sealed record AddComponentRequest(
     string ComponentProductId,
     int Quantity,

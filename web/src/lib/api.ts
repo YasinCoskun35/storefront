@@ -17,6 +17,73 @@ export const api: AxiosInstance = axios.create({
   withCredentials: true, // Important for HttpOnly cookies
 });
 
+// Add JWT token from localStorage to all requests
+api.interceptors.request.use(
+  (config) => {
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Development: Add request/response logging
+if (process.env.NODE_ENV === 'development') {
+  // Request interceptor (for logging)
+  /* eslint-disable no-console */
+  api.interceptors.request.use(
+    (config) => {
+      const fullURL = `${config.baseURL}${config.url}`;
+      console.log('🚀 API Request:', {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+        fullURL,
+        data: config.data,
+        params: config.params,
+        headers: {
+          Authorization: config.headers.Authorization ? '✅ Bearer token present' : '❌ No token',
+        },
+      });
+      return config;
+    },
+    (error) => {
+      console.error('❌ Request Error:', error);
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor
+  api.interceptors.response.use(
+    (response) => {
+      console.log('✅ API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.config.url,
+        data: response.data,
+      });
+      return response;
+    },
+    (error) => {
+      console.error('❌ API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.config?.url,
+        message: error.message,
+        data: error.response?.data,
+      });
+      return Promise.reject(error);
+    }
+  );
+  /* eslint-enable no-console */
+}
+
 // API Types
 export interface Product {
   id: string;
@@ -24,9 +91,11 @@ export interface Product {
   sku: string;
   description?: string;
   shortDescription?: string;
-  price: number;
-  compareAtPrice?: number;
-  stockStatus: string;
+  /** Null when the platform operates in quote-request mode (Features.Pricing.Enabled = false) */
+  price?: number | null;
+  compareAtPrice?: number | null;
+  productType?: string;
+  stockStatus: number;
   quantity: number;
   categoryId: string;
   categoryName: string;
@@ -35,6 +104,7 @@ export interface Product {
   isActive: boolean;
   isFeatured: boolean;
   primaryImageUrl?: string;
+  slug?: string;
   createdAt: string;
 }
 
@@ -65,7 +135,10 @@ export interface Category {
   parentId?: string;
   displayOrder: number;
   isActive: boolean;
+  showInNavbar?: boolean;
   productCount: number;
+  /** Populated when fetching nested/hierarchical category tree for mega menu */
+  children?: Category[];
 }
 
 export interface Brand {
@@ -127,10 +200,10 @@ export interface CreateProductDto {
   sku: string;
   description?: string;
   shortDescription?: string;
-  price: number;
+  price?: number;
   compareAtPrice?: number;
-  stockStatus: string;
-  quantity: number;
+  stockStatus?: string;
+  quantity?: number;
   categoryId: string;
   brandId?: string;
   weight?: number;
@@ -139,6 +212,8 @@ export interface CreateProductDto {
   height?: number;
   isActive?: boolean;
   isFeatured?: boolean;
+  productType?: string;
+  canBeSoldSeparately?: boolean;
 }
 
 // Category Create/Update Types
@@ -149,6 +224,7 @@ export interface CreateCategoryDto {
   parentId?: string;
   displayOrder?: number;
   isActive?: boolean;
+  showInNavbar?: boolean;
 }
 
 // API Client Methods
@@ -176,6 +252,26 @@ export const catalogApi = {
     return response.data;
   },
 
+  updateProduct: async (id: string, product: {
+    name: string;
+    sku: string;
+    description?: string;
+    shortDescription?: string;
+    categoryId: string;
+    weight?: number;
+    length?: number;
+    width?: number;
+    height?: number;
+    isActive: boolean;
+    isFeatured: boolean;
+  }): Promise<void> => {
+    await api.put(`/api/catalog/products/${id}`, product);
+  },
+
+  deleteProduct: async (id: string): Promise<void> => {
+    await api.delete(`/api/catalog/products/${id}`);
+  },
+
   uploadProductImage: async (
     productId: string,
     file: File,
@@ -186,19 +282,14 @@ export const catalogApi = {
 
     const response = await api.post(
       `/api/catalog/products/${productId}/images?isPrimary=${isPrimary}`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      formData
     );
     return response.data;
   },
 
-  getCategories: async (parentId?: string): Promise<Category[]> => {
+  getCategories: async (params?: { parentId?: string; showInNavbar?: boolean; all?: boolean }): Promise<Category[]> => {
     const response = await api.get("/api/catalog/categories", {
-      params: { parentId },
+      params: params ?? {},
     });
     return response.data;
   },
@@ -207,9 +298,70 @@ export const catalogApi = {
     const response = await api.post("/api/catalog/categories", category);
     return response.data;
   },
+
+  updateCategory: async (id: string, category: CreateCategoryDto): Promise<void> => {
+    await api.put(`/api/catalog/categories/${id}`, category);
+  },
+
+  deleteCategory: async (id: string): Promise<void> => {
+    await api.delete(`/api/catalog/categories/${id}`);
+  },
+
+  /** Returns a nested category tree built client-side from the flat list */
+  getCategoriesTree: async (): Promise<Category[]> => {
+    const response = await api.get<Category[]>("/api/catalog/categories", { params: { all: true } });
+    const all: Category[] = response.data;
+    const map = new Map<string, Category>();
+    all.forEach((c) => map.set(c.id, { ...c, children: [] }));
+    const roots: Category[] = [];
+    map.forEach((cat) => {
+      if (cat.parentId) {
+        map.get(cat.parentId)?.children?.push(cat);
+      } else {
+        roots.push(cat);
+      }
+    });
+    return roots;
+  },
 };
 
+export interface HeroSlideDto {
+  id: string;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  link: string;
+  linkText: string;
+}
+
+export interface CategorySlideDto {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl: string;
+  link: string;
+  productCount: number;
+}
+
+export interface FeaturedBrandDto {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  link: string;
+}
+
+export interface HomeSlidersData {
+  heroSlides: HeroSlideDto[];
+  categorySlides: CategorySlideDto[];
+  featuredBrands: FeaturedBrandDto[];
+}
+
 export const contentApi = {
+  getHomeSliders: async (): Promise<HomeSlidersData> => {
+    const response = await api.get("/api/content/home-sliders");
+    return response.data;
+  },
+
   getBlogPosts: async (params: {
     category?: string;
     tag?: string;
