@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../../components/ui/Card';
@@ -20,6 +21,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminPartnersScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState('All');
@@ -45,7 +47,7 @@ export default function AdminPartnersScreen() {
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Search partners..."
+          placeholder={t('partners.searchPlaceholder')}
           placeholderTextColor={Colors.textMuted}
           returnKeyType="search"
         />
@@ -74,7 +76,7 @@ export default function AdminPartnersScreen() {
         data={partners}
         keyExtractor={(p) => p.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState title="No partners found" />}
+        ListEmptyComponent={<EmptyState title={t('partners.noPartnersFound')} />}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => router.push(`/(admin)/partners/${item.id}` as never)}>
             <Card style={styles.partnerCard}>

@@ -33,6 +33,9 @@ export interface AdminPartnerDetails extends AdminPartner {
   approvedAt: string | null;
   approvedBy: string | null;
   approvalNotes: string | null;
+  discountRate: number;
+  currentBalance: number;
+  transactions: PartnerAccountTransactionDto[];
   users: AdminPartnerUser[];
 }
 
@@ -44,6 +47,17 @@ export interface AdminPartnerUser {
   role: string;
   isActive: boolean;
   lastLoginAt: string | null;
+}
+
+export interface PartnerAccountTransactionDto {
+  id: string;
+  type: string;
+  amount: number;
+  paymentMethod: string | null;
+  orderReference: string | null;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
 }
 
 export const adminApi = {
@@ -80,4 +94,15 @@ export const adminApi = {
 
   suspendPartner: (id: string, reason?: string) =>
     api.put(`/api/identity/admin/partners/${id}/suspend`, { reason }),
+
+  updatePartnerPricing: (id: string, discountRate: number) =>
+    api.put(`/api/identity/admin/partners/${id}/pricing`, { discountRate }),
+
+  recordPartnerTransaction: (id: string, data: {
+    type: string;
+    amount: number;
+    paymentMethod?: string;
+    orderReference?: string;
+    notes?: string;
+  }) => api.post(`/api/identity/admin/partners/${id}/account/transactions`, data),
 };

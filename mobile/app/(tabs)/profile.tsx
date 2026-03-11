@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   ScrollView,
@@ -28,7 +30,9 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 }
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const { signOut } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: profile, isLoading, isError, refetch } = useQuery({
@@ -86,22 +90,22 @@ export default function ProfileScreen() {
 
         {/* Personal Info */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          <InfoRow label="First Name" value={profile.firstName} />
-          <InfoRow label="Last Name" value={profile.lastName} />
-          <InfoRow label="Email" value={profile.email} />
-          <InfoRow label="Phone" value={profile.phone} />
+          <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
+          <InfoRow label={t('profile.firstName')} value={profile.firstName} />
+          <InfoRow label={t('profile.lastName')} value={profile.lastName} />
+          <InfoRow label={t('common.email')} value={profile.email} />
+          <InfoRow label={t('profile.phone')} value={profile.phone} />
           <InfoRow label="Role" value={profile.role} />
         </Card>
 
         {/* Company Info */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Company</Text>
-          <InfoRow label="Company Name" value={profile.company?.name} />
-          <InfoRow label="Status" value={profile.company?.status} />
-          <InfoRow label="Address" value={profile.company?.address} />
-          <InfoRow label="Phone" value={profile.company?.phone} />
-          <InfoRow label="Email" value={profile.company?.email} />
+          <Text style={styles.sectionTitle}>{t('profile.companyInfo')}</Text>
+          <InfoRow label={t('partners.company')} value={profile.company?.name} />
+          <InfoRow label={t('common.status')} value={profile.company?.status} />
+          <InfoRow label={t('common.address')} value={profile.company?.address} />
+          <InfoRow label={t('common.phone')} value={profile.company?.phone} />
+          <InfoRow label={t('common.email')} value={profile.company?.email} />
         </Card>
 
         {/* Saved Addresses */}
@@ -136,9 +140,20 @@ export default function ProfileScreen() {
           )}
         </Card>
 
+        {/* Account Balance */}
+        <TouchableOpacity
+          style={styles.accountButton}
+          onPress={() => router.push('/(tabs)/account')}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.accountButtonIcon}>💰</Text>
+          <Text style={styles.accountButtonText}>{t('profile.myAccount')}</Text>
+          <Text style={styles.accountButtonChevron}>›</Text>
+        </TouchableOpacity>
+
         {/* Logout */}
         <Button
-          title="Sign Out"
+          title={t('profile.logout')}
           variant="danger"
           onPress={handleLogout}
           size="lg"
@@ -178,6 +193,19 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 13, color: Colors.textSecondary, flex: 1 },
   infoValue: { fontSize: 13, color: Colors.text, fontWeight: '500', flex: 2, textAlign: 'right' },
+  accountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  accountButtonIcon: { fontSize: 20, marginRight: 12 },
+  accountButtonText: { flex: 1, fontSize: 15, fontWeight: '600', color: Colors.primary },
+  accountButtonChevron: { fontSize: 22, color: Colors.textMuted, fontWeight: '300' },
   logoutButton: { marginTop: 8 },
   emptyText: { fontSize: 13, color: Colors.textMuted, textAlign: 'center', paddingVertical: 8 },
   addressRow: {

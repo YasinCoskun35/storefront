@@ -48,4 +48,6 @@ export const Colors = {
   statusCompletedBg: '#f3f4f6',
   statusCancelled: '#dc2626',
   statusCancelledBg: '#fee2e2',
+  statusPendingPayment: '#ea580c',
+  statusPendingPaymentBg: '#ffedd5',
 };

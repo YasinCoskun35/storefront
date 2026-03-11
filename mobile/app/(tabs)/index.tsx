@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   RefreshControl,
   ScrollView,
@@ -50,6 +51,7 @@ function QuickAction({ icon, label, onPress }: QuickActionProps) {
 }
 
 export default function DashboardScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
 
@@ -96,7 +98,7 @@ export default function DashboardScreen() {
         {/* Welcome */}
         <View style={styles.welcome}>
           <Text style={styles.welcomeText}>
-            Welcome, {user?.firstName} {user?.lastName}
+            {t('dashboard.welcome')}, {user?.firstName} {user?.lastName}
           </Text>
           <Text style={styles.companyText}>{user?.company?.name}</Text>
         </View>
@@ -104,33 +106,33 @@ export default function DashboardScreen() {
         {/* Stats */}
         {stats && (
           <View style={styles.statsGrid}>
-            <StatCard label="Total" value={stats.totalOrders} color={Colors.primary} bg={Colors.primaryLight} />
-            <StatCard label="Pending" value={stats.pendingOrders} color={Colors.statusPending} bg={Colors.statusPendingBg} />
-            <StatCard label="Active" value={stats.activeOrders} color={Colors.statusConfirmed} bg={Colors.statusConfirmedBg} />
-            <StatCard label="Completed" value={stats.completedOrders} color={Colors.statusCompleted} bg={Colors.statusCompletedBg} />
+            <StatCard label={t('dashboard.totalOrders')} value={stats.totalOrders} color={Colors.primary} bg={Colors.primaryLight} />
+            <StatCard label={t('dashboard.pendingOrders')} value={stats.pendingOrders} color={Colors.statusPending} bg={Colors.statusPendingBg} />
+            <StatCard label={t('dashboard.activeOrders')} value={stats.activeOrders} color={Colors.statusConfirmed} bg={Colors.statusConfirmedBg} />
+            <StatCard label={t('dashboard.completedOrders')} value={stats.completedOrders} color={Colors.statusCompleted} bg={Colors.statusCompletedBg} />
           </View>
         )}
 
         {/* Quick Actions */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.quickActions')}</Text>
           <View style={styles.quickActions}>
-            <QuickAction icon="📦" label="Browse Products" onPress={() => router.push('/(tabs)/products/index')} />
-            <QuickAction icon="🛒" label="View Cart" onPress={() => router.push('/(tabs)/cart')} />
-            <QuickAction icon="📋" label="My Orders" onPress={() => router.push('/(tabs)/orders/index')} />
+            <QuickAction icon="📦" label={t('dashboard.browseCatalog')} onPress={() => router.push('/(tabs)/products/index')} />
+            <QuickAction icon="🛒" label={t('dashboard.myCart')} onPress={() => router.push('/(tabs)/cart')} />
+            <QuickAction icon="📋" label={t('dashboard.myOrders')} onPress={() => router.push('/(tabs)/orders/index')} />
           </View>
         </Card>
 
         {/* Recent Orders */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Orders</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.recentOrders')}</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)/orders/index')}>
-              <Text style={styles.viewAll}>View All</Text>
+              <Text style={styles.viewAll}>{t('common.viewAll')}</Text>
             </TouchableOpacity>
           </View>
           {recentOrders?.items.length === 0 ? (
-            <Text style={styles.emptyText}>No orders yet.</Text>
+            <Text style={styles.emptyText}>{t('orders.noOrdersYet')}</Text>
           ) : (
             recentOrders?.items.map((order) => (
               <OrderCard

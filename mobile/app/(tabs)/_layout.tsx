@@ -110,6 +110,7 @@ export default function TabsLayout() {
       {/* Hidden from tab bar but accessible via router */}
       <Tabs.Screen name="products/[id]" options={{ href: null, headerTitle: 'Product Details' }} />
       <Tabs.Screen name="orders/[id]" options={{ href: null, headerTitle: 'Order Details' }} />
+      <Tabs.Screen name="account" options={{ href: null, headerTitle: 'Cari Hesap' }} />
     </Tabs>
   );
 }

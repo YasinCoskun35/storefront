@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../../components/ui/Button';
 import { Colors } from '../../constants/colors';
 import { authApi } from '../../lib/api/auth';
@@ -19,6 +20,7 @@ import { useAuth } from '../../lib/auth';
 type LoginMode = 'partner' | 'admin';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const { signIn } = useAuth();
   const [mode, setMode] = useState<LoginMode>('partner');
   const [email, setEmail] = useState('');
@@ -73,7 +75,7 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <Text style={styles.logo}>Storefront</Text>
             <Text style={styles.subtitle}>
-              {mode === 'admin' ? 'Admin Panel' : 'Partner Portal'}
+              {mode === 'admin' ? 'Admin Panel' : t('auth.partnerPortal')}
             </Text>
           </View>
 
@@ -98,15 +100,15 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.title}>Sign In</Text>
+            <Text style={styles.title}>{t('auth.signIn')}</Text>
             <Text style={styles.desc}>
               {mode === 'admin'
                 ? 'Enter your admin credentials.'
-                : 'Enter your credentials to access the partner portal.'}
+                : t('auth.loginSubtitle')}
             </Text>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t('auth.email')}</Text>
               <TextInput
                 style={styles.input}
                 value={email}
@@ -121,7 +123,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t('auth.password')}</Text>
               <TextInput
                 style={styles.input}
                 value={password}
@@ -135,7 +137,7 @@ export default function LoginScreen() {
             </View>
 
             <Button
-              title="Sign In"
+              title={loading ? t('auth.signingIn') : t('auth.signIn')}
               onPress={handleLogin}
               loading={loading}
               size="lg"

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -7,6 +8,7 @@ import { Colors } from '../../constants/colors';
 import { useAuth } from '../../lib/auth';
 
 export default function AdminProfileScreen() {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
 
   function handleLogout() {
@@ -34,11 +36,11 @@ export default function AdminProfileScreen() {
 
         <Card style={styles.section}>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Name</Text>
+            <Text style={styles.rowLabel}>{t('common.name')}</Text>
             <Text style={styles.rowValue}>{user?.firstName} {user?.lastName}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Email</Text>
+            <Text style={styles.rowLabel}>{t('common.email')}</Text>
             <Text style={styles.rowValue}>{user?.email}</Text>
           </View>
           <View style={styles.row}>
@@ -48,7 +50,7 @@ export default function AdminProfileScreen() {
         </Card>
 
         <Button
-          title="Sign Out"
+          title={t('profile.logout')}
           variant="danger"
           onPress={handleLogout}
           size="lg"

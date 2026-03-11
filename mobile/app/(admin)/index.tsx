@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../components/ui/Card';
@@ -19,6 +20,7 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 }
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const router = useRouter();
 
@@ -41,47 +43,47 @@ export default function AdminDashboard() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.greeting}>
-          Welcome, {user?.firstName} 👋
+          {t('dashboard.welcome')}, {user?.firstName} 👋
         </Text>
 
         {/* Stats */}
         <View style={styles.statsGrid}>
-          <StatCard label="Total" value={stats?.totalOrders ?? 0} color={Colors.primary} />
-          <StatCard label="Pending" value={stats?.pendingOrders ?? 0} color={Colors.warning} />
-          <StatCard label="Active" value={stats?.activeOrders ?? 0} color={Colors.success} />
-          <StatCard label="Done" value={stats?.completedOrders ?? 0} color={Colors.gray} />
+          <StatCard label={t('dashboard.totalOrders')} value={stats?.totalOrders ?? 0} color={Colors.primary} />
+          <StatCard label={t('dashboard.pendingOrders')} value={stats?.pendingOrders ?? 0} color={Colors.warning} />
+          <StatCard label={t('dashboard.activeOrders')} value={stats?.activeOrders ?? 0} color={Colors.success} />
+          <StatCard label={t('dashboard.completedOrders')} value={stats?.completedOrders ?? 0} color={Colors.gray} />
         </View>
 
         {/* Quick actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle}>{t('dashboard.quickActions')}</Text>
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => router.push('/(admin)/orders' as never)}
           >
             <Text style={styles.actionIcon}>📋</Text>
-            <Text style={styles.actionLabel}>All Orders</Text>
+            <Text style={styles.actionLabel}>{t('nav.adminOrders')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => router.push('/(admin)/partners' as never)}
           >
             <Text style={styles.actionIcon}>🏢</Text>
-            <Text style={styles.actionLabel}>Partners</Text>
+            <Text style={styles.actionLabel}>{t('nav.partners')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: Colors.warningLight }]}
             onPress={() => router.push({ pathname: '/(admin)/orders', params: { status: 'Pending' } } as never)}
           >
             <Text style={styles.actionIcon}>⏳</Text>
-            <Text style={styles.actionLabel}>Pending</Text>
+            <Text style={styles.actionLabel}>{t('dashboard.pendingOrders')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Recent pending orders */}
         {recentOrders.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Pending Orders</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.pendingOrders')}</Text>
             <Card>
               {recentOrders.map((order, i) => (
                 <TouchableOpacity

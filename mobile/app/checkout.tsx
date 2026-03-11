@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -53,6 +54,7 @@ function Field({ label, value, onChangeText, placeholder, required, multiline, k
 }
 
 export default function CheckoutScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -173,12 +175,12 @@ export default function CheckoutScreen() {
           )}
 
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Delivery Address</Text>
-            <Field label="Street Address" value={address} onChangeText={setAddress} required placeholder="123 Main Street" />
-            <Field label="City" value={city} onChangeText={setCity} required placeholder="Istanbul" />
-            <Field label="State / Province" value={state} onChangeText={setState} required placeholder="Istanbul" />
-            <Field label="Postal Code" value={postalCode} onChangeText={setPostalCode} required placeholder="34000" />
-            <Field label="Country" value={country} onChangeText={setCountry} required placeholder="Turkey" />
+            <Text style={styles.sectionTitle}>{t('checkout.deliveryAddress')}</Text>
+            <Field label={t('checkout.streetAddress')} value={address} onChangeText={setAddress} required placeholder="123 Main Street" />
+            <Field label={t('checkout.city')} value={city} onChangeText={setCity} required placeholder="Istanbul" />
+            <Field label={t('checkout.state')} value={state} onChangeText={setState} required placeholder="Istanbul" />
+            <Field label={t('checkout.postalCode')} value={postalCode} onChangeText={setPostalCode} required placeholder="34000" />
+            <Field label={t('checkout.country')} value={country} onChangeText={setCountry} required placeholder="Turkey" />
 
             {/* Save address toggle */}
             <View style={styles.saveRow}>
@@ -203,14 +205,14 @@ export default function CheckoutScreen() {
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Delivery Options (Optional)</Text>
             <Field
-              label="Delivery Notes"
+              label={t('checkout.deliveryNotes')}
               value={deliveryNotes}
               onChangeText={setDeliveryNotes}
               placeholder="Special instructions for delivery..."
               multiline
             />
             <Field
-              label="Requested Delivery Date"
+              label={t('checkout.requestedDeliveryDate')}
               value={requestedDate}
               onChangeText={setRequestedDate}
               placeholder="YYYY-MM-DD"
@@ -221,7 +223,7 @@ export default function CheckoutScreen() {
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Order Notes (Optional)</Text>
             <Field
-              label="Notes"
+              label={t('checkout.additionalNotes')}
               value={orderNotes}
               onChangeText={setOrderNotes}
               placeholder="Additional notes for this order..."
@@ -230,7 +232,7 @@ export default function CheckoutScreen() {
           </Card>
 
           <Button
-            title="Place Order"
+            title={placeOrderMutation.isPending ? t('checkout.submitting') : t('checkout.submitOrder')}
             onPress={handlePlaceOrder}
             loading={placeOrderMutation.isPending}
             size="lg"

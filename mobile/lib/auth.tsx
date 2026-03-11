@@ -1,8 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import { router } from 'expo-router';
 import axios from 'axios';
-import { API_BASE_URL, TOKEN_KEY, USER_KEY, registerUnauthorizedHandler, registerNetworkErrorHandler } from './api';
+import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { API_BASE_URL, TOKEN_KEY, USER_KEY, registerNetworkErrorHandler, registerUnauthorizedHandler } from './api';
 import type { User } from './types';
 
 interface AuthState {
@@ -58,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           firstName: profile.firstName,
           lastName: profile.lastName,
           role: profile.role,
+          discountRate: profile.discountRate,
           company: profile.company,
         };
         await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser));

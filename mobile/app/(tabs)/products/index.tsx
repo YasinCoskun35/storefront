@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   RefreshControl,
@@ -21,6 +22,7 @@ import { catalogApi } from '../../../lib/api/catalog';
 import type { Category } from '../../../lib/types';
 
 export default function ProductsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export default function ProductsScreen() {
         <View style={styles.searchBar}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search products..."
+            placeholder={t('products.searchPlaceholder')}
             placeholderTextColor={Colors.textMuted}
             value={searchTerm}
             onChangeText={handleSearchChange}
@@ -90,7 +92,7 @@ export default function ProductsScreen() {
               onPress={() => setSelectedCategory(null)}
             >
               <Text style={[styles.filterLabel, !selectedCategory && styles.filterLabelActive]}>
-                All
+                {t('products.allCategories')}
               </Text>
             </TouchableOpacity>
             {categories.map((cat: Category) => (
@@ -114,7 +116,7 @@ export default function ProductsScreen() {
 
         {/* Products Grid */}
         {products.length === 0 ? (
-          <EmptyState title="No products found" subtitle="Try adjusting your search or filters." />
+          <EmptyState title={t('products.noProductsFound')} subtitle="Try adjusting your search or filters." />
         ) : (
           <FlatList
             data={products}

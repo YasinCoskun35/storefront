@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   FlatList,
@@ -18,14 +19,20 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors } from '../../constants/colors';
 import { ordersApi } from '../../lib/api/orders';
+import { partnersApi } from '../../lib/api/partners';
 import { getImageUrl } from '../../lib/api';
 import type { CartItem } from '../../lib/types';
 
-function CartItemRow({ item, onUpdateQty, onRemove }: {
+function CartItemRow({ item, discountRate, onUpdateQty, onRemove }: {
   item: CartItem;
+  discountRate: number;
   onUpdateQty: (newQty: number) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
+  const unitPrice = item.unitPrice ?? null;
+  const discountedPrice = unitPrice != null ? unitPrice * (1 - discountRate / 100) : null;
+  const lineTotal = discountedPrice != null ? discountedPrice * item.quantity : null;
   return (
     <View style={styles.itemCard}>
       {item.productImageUrl ? (
@@ -59,6 +66,27 @@ function CartItemRow({ item, onUpdateQty, onRemove }: {
           <Text style={styles.itemNotes} numberOfLines={2}>{item.customizationNotes}</Text>
         ) : null}
 
+        {unitPrice != null && (
+          <View style={styles.itemPriceRow}>
+            {discountRate > 0 && (
+              <Text style={styles.itemPriceOriginal}>
+                ₺{unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            )}
+            {discountedPrice != null && (
+              <Text style={styles.itemPriceDiscounted}>
+                ₺{discountedPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {item.quantity > 1 ? ` × ${item.quantity}` : ''}
+              </Text>
+            )}
+            {lineTotal != null && item.quantity > 1 && (
+              <Text style={styles.itemLineTotal}>
+                = ₺{lineTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            )}
+          </View>
+        )}
+
         <View style={styles.itemActions}>
           <View style={styles.qtyRow}>
             <TouchableOpacity
@@ -76,7 +104,7 @@ function CartItemRow({ item, onUpdateQty, onRemove }: {
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.removeBtn} onPress={onRemove}>
-            <Text style={styles.removeBtnText}>Remove</Text>
+            <Text style={styles.removeBtnText}>{t('cart.removeItem')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -85,8 +113,15 @@ function CartItemRow({ item, onUpdateQty, onRemove }: {
 }
 
 export default function CartScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: profileData } = useQuery({
+    queryKey: ['partner-profile'],
+    queryFn: () => partnersApi.getProfile().then((r) => r.data),
+    staleTime: 60_000,
+  });
+  const discountRate = profileData?.discountRate ?? 0;
 
   const { data: cart, isLoading, isError, refetch } = useQuery({
     queryKey: ['cart'],
@@ -122,12 +157,20 @@ export default function CartScreen() {
 
   const items = cart?.items ?? [];
 
+  const subTotal = items.reduce((acc, item) => {
+    if (item.unitPrice == null) return acc;
+    return acc + item.unitPrice * item.quantity;
+  }, 0);
+  const totalDiscount = subTotal > 0 && discountRate > 0 ? subTotal * (discountRate / 100) : 0;
+  const total = subTotal - totalDiscount;
+  const hasPricing = items.some((i) => i.unitPrice != null);
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       {items.length === 0 ? (
         <EmptyState
-          title="Your cart is empty"
-          subtitle="Browse the catalog to add products."
+          title={t('cart.empty')}
+          subtitle={t('cart.emptyDesc')}
         />
       ) : (
         <FlatList
@@ -138,17 +181,43 @@ export default function CartScreen() {
           renderItem={({ item }) => (
             <CartItemRow
               item={item}
+              discountRate={discountRate}
               onUpdateQty={(qty) => updateQtyMutation.mutate({ itemId: item.id, quantity: qty })}
               onRemove={() => handleRemove(item)}
             />
           )}
           ListFooterComponent={
             <View style={styles.footer}>
+              {hasPricing && (
+                <View style={styles.priceSummary}>
+                  {discountRate > 0 && (
+                    <View style={styles.discountBanner}>
+                      <Text style={styles.discountBannerText}>{t('cart.partnerDiscount')}: −{discountRate}% {t('cart.discountApplied')}</Text>
+                    </View>
+                  )}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>{t('cart.subtotal')}</Text>
+                    <Text style={styles.summaryValue}>₺{subTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</Text>
+                  </View>
+                  {totalDiscount > 0 && (
+                    <View style={styles.summaryRow}>
+                      <Text style={[styles.summaryLabel, { color: Colors.success }]}>{t('cart.partnerDiscount')}</Text>
+                      <Text style={[styles.summaryValue, { color: Colors.success }]}>
+                        −₺{totalDiscount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={[styles.summaryRow, styles.summaryTotal]}>
+                    <Text style={styles.summaryTotalLabel}>{t('cart.total')}</Text>
+                    <Text style={styles.summaryTotalValue}>₺{total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</Text>
+                  </View>
+                </View>
+              )}
               <Text style={styles.summary}>
-                {items.length} item{items.length !== 1 ? 's' : ''} in cart
+                {items.length} {t('common.items')}
               </Text>
               <Button
-                title="Proceed to Checkout"
+                title={t('cart.proceedToCheckout')}
                 onPress={() => router.push('/checkout')}
                 size="lg"
               />
@@ -217,4 +286,29 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   summary: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center' },
+  itemPriceRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  itemPriceOriginal: { fontSize: 11, color: Colors.textMuted, textDecorationLine: 'line-through' },
+  itemPriceDiscounted: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  itemLineTotal: { fontSize: 12, color: Colors.textSecondary },
+  priceSummary: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+    gap: 6,
+  },
+  discountBanner: {
+    backgroundColor: Colors.successLight,
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 4,
+  },
+  discountBannerText: { fontSize: 12, fontWeight: '600', color: Colors.success, textAlign: 'center' },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  summaryLabel: { fontSize: 13, color: Colors.textSecondary },
+  summaryValue: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  summaryTotal: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 6, marginTop: 2 },
+  summaryTotalLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  summaryTotalValue: { fontSize: 15, fontWeight: '800', color: Colors.primary },
 });

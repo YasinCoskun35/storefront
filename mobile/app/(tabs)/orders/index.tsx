@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   RefreshControl,
@@ -29,6 +30,7 @@ const TABS = [
 type TabValue = typeof TABS[number]['value'];
 
 export default function OrdersScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabValue>(null);
 
@@ -67,7 +69,7 @@ export default function OrdersScreen() {
       </ScrollView>
 
       {orders.length === 0 ? (
-        <EmptyState title="No orders found" subtitle="Your orders will appear here." />
+        <EmptyState title={t('orders.noOrders')} subtitle={t('orders.startBrowsing')} />
       ) : (
         <FlatList
           data={orders}

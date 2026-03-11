@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { AuthProvider, useAuth } from '../lib/auth';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { AuthProvider, useAuth } from '../lib/auth';
+import '../lib/i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,21 +14,23 @@ const queryClient = new QueryClient({
 });
 
 function NetworkErrorScreen({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.errorContainer}>
       <Text style={styles.errorIcon}>📡</Text>
-      <Text style={styles.errorTitle}>Cannot connect to server</Text>
+      <Text style={styles.errorTitle}>{t('network.cannotConnect')}</Text>
       <Text style={styles.errorMessage}>
-        Make sure the server is running and you are on the same network.
+        {t('network.checkServer')}
       </Text>
       <TouchableOpacity style={styles.retryButton} onPress={onRetry} activeOpacity={0.8}>
-        <Text style={styles.retryText}>Retry</Text>
+        <Text style={styles.retryText}>{t('network.retry')}</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 function NavigationGuard() {
+  const { t } = useTranslation();
   const { user, isAuthenticated, isLoading, networkError, retryConnection } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -54,7 +58,7 @@ function NavigationGuard() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Connecting...</Text>
+        <Text style={styles.loadingText}>{t('network.connecting')}</Text>
       </View>
     );
   }

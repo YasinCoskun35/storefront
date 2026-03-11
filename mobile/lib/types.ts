@@ -26,6 +26,7 @@ export interface User {
   lastName: string;
   role: string;
   isAdmin?: boolean;
+  discountRate?: number;
   company: Company;
 }
 
@@ -65,6 +66,7 @@ export interface Product {
   primaryImageUrl: string | null;
   imageUrls: string[];
   isActive: boolean;
+  price?: number | null;
   createdAt: string;
 }
 
@@ -119,6 +121,7 @@ export interface CartItem {
   productSKU: string;
   productImageUrl: string | null;
   quantity: number;
+  unitPrice?: number | null;
   selectedVariants: string | null;
   customizationNotes: string | null;
 }
@@ -150,13 +153,16 @@ export type OrderStatus =
   | 'Shipping'
   | 'Delivered'
   | 'Completed'
-  | 'Cancelled';
+  | 'Cancelled'
+  | 'PendingPayment';
 
 export interface OrderSummary {
   id: string;
   orderNumber: string;
   status: OrderStatus;
   itemCount: number;
+  totalAmount?: number | null;
+  currency?: string | null;
   createdAt: string;
   updatedAt: string;
   partnerCompanyName: string;
@@ -169,6 +175,9 @@ export interface OrderItem {
   productSKU: string;
   productImageUrl: string | null;
   quantity: number;
+  unitPrice?: number | null;
+  discount?: number | null;
+  totalPrice?: number | null;
   selectedVariants: string | null;
   customizationNotes: string | null;
 }
@@ -204,6 +213,10 @@ export interface OrderDetail {
   items: OrderItem[];
   comments: OrderComment[];
   shippingInfo: ShippingInfo | null;
+  subTotal?: number | null;
+  discount?: number | null;
+  totalAmount?: number | null;
+  currency?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -248,6 +261,24 @@ export interface CreateSavedAddressRequest {
   isDefault: boolean;
 }
 
+// Partner account / current account
+export interface PartnerAccountTransaction {
+  id: string;
+  type: 'OrderDebit' | 'PaymentCredit' | 'ManualAdjustment';
+  amount: number;
+  paymentMethod: string | null;
+  orderReference: string | null;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface PartnerAccount {
+  currentBalance: number;
+  discountRate: number;
+  transactions: PartnerAccountTransaction[];
+}
+
 // Partner profile
 export interface PartnerProfile {
   id: string;
@@ -256,6 +287,7 @@ export interface PartnerProfile {
   lastName: string;
   phone: string | null;
   role: string;
+  discountRate: number;
   company: {
     id: string;
     name: string;

@@ -19,6 +19,7 @@ import { LoadingScreen } from '../../../components/ui/LoadingScreen';
 import { Colors } from '../../../constants/colors';
 import { catalogApi } from '../../../lib/api/catalog';
 import { ordersApi } from '../../../lib/api/orders';
+import { partnersApi } from '../../../lib/api/partners';
 import { getImageUrl } from '../../../lib/api';
 import type { ProductVariantGroup, SelectedVariantItem, VariantOption } from '../../../lib/types';
 
@@ -26,6 +27,12 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: profileData } = useQuery({
+    queryKey: ['partner-profile'],
+    queryFn: () => partnersApi.getProfile().then((r) => r.data),
+    staleTime: 60_000,
+  });
+  const discountRate = profileData?.discountRate ?? 0;
 
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
@@ -124,6 +131,29 @@ export default function ProductDetailScreen() {
           <Text style={styles.name}>{product.name}</Text>
           <Text style={styles.sku}>SKU: {product.sku}</Text>
           <Text style={styles.category}>{product.categoryName}</Text>
+
+          {/* Partner Price */}
+          {product.price != null && (
+            <View style={styles.priceSection}>
+              {discountRate > 0 ? (
+                <>
+                  <Text style={styles.priceOriginal}>
+                    ₺{product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                  <Text style={styles.priceDiscounted}>
+                    ₺{(product.price * (1 - discountRate / 100)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                  <View style={styles.discountBadge}>
+                    <Text style={styles.discountBadgeText}>Partner −{discountRate}%</Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.priceDiscounted}>
+                  ₺{product.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              )}
+            </View>
+          )}
 
           {/* Description */}
           {product.description ? (
@@ -333,4 +363,9 @@ const styles = StyleSheet.create({
   },
   addButton: { marginTop: 8 },
   requiredNote: { marginTop: 8, fontSize: 12, color: Colors.textMuted, textAlign: 'center' },
+  priceSection: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  priceOriginal: { fontSize: 15, color: Colors.textMuted, textDecorationLine: 'line-through' },
+  priceDiscounted: { fontSize: 20, fontWeight: '800', color: Colors.primary },
+  discountBadge: { backgroundColor: Colors.successLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  discountBadgeText: { fontSize: 12, fontWeight: '700', color: Colors.success },
 });

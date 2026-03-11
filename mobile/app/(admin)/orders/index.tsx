@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -10,7 +11,7 @@ import { LoadingScreen } from '../../../components/ui/LoadingScreen';
 import { Colors } from '../../../constants/colors';
 import { adminApi } from '../../../lib/api/admin';
 
-const STATUS_FILTERS = ['All', 'Pending', 'Confirmed', 'InProduction', 'ReadyToShip', 'Shipping', 'Delivered', 'Completed', 'Cancelled'];
+const STATUS_FILTERS = ['All', 'Pending', 'PendingPayment', 'Confirmed', 'InProduction', 'ReadyToShip', 'Shipping', 'Delivered', 'Completed', 'Cancelled'];
 
 const STATUS_COLORS: Record<string, string> = {
   Pending: Colors.warning,
@@ -22,12 +23,24 @@ const STATUS_COLORS: Record<string, string> = {
   Delivered: Colors.success,
   Completed: Colors.gray,
   Cancelled: Colors.error,
+  PendingPayment: Colors.orange,
 };
 
 export default function AdminOrdersScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ status?: string }>();
   const [activeStatus, setActiveStatus] = useState(params.status ?? 'All');
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: number }) =>
+      adminApi.updateOrderStatus(id, status as unknown as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+    },
+    onError: (err: any) => Alert.alert('Error', err.response?.data?.message ?? 'Failed to update order'),
+  });
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-orders', activeStatus],
@@ -68,10 +81,10 @@ export default function AdminOrdersScreen() {
         data={orders}
         keyExtractor={(o) => o.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<EmptyState title="No orders found" />}
+        ListEmptyComponent={<EmptyState title={t('orders.noOrders')} />}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => router.push(`/(admin)/orders/${item.id}` as never)}>
-            <Card style={styles.orderCard}>
+          <Card style={styles.orderCard}>
+            <TouchableOpacity onPress={() => router.push(`/(admin)/orders/${item.id}` as never)} activeOpacity={0.7}>
               <View style={styles.orderHeader}>
                 <Text style={styles.orderNumber}>{item.orderNumber}</Text>
                 <View style={[styles.badge, { backgroundColor: (STATUS_COLORS[item.status] ?? Colors.gray) + '20' }]}>
@@ -85,8 +98,34 @@ export default function AdminOrdersScreen() {
                 <Text style={styles.metaText}>{item.itemCount} item{item.itemCount !== 1 ? 's' : ''}</Text>
                 <Text style={styles.metaText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
               </View>
-            </Card>
-          </TouchableOpacity>
+            </TouchableOpacity>
+            {item.status === 'Pending' && (
+              <View style={styles.quickActions}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.approveBtn]}
+                  onPress={() =>
+                    Alert.alert('Approve Order', `Approve ${item.orderNumber}?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Approve', onPress: () => updateStatusMutation.mutate({ id: item.id, status: 3 }) },
+                    ])
+                  }
+                >
+                  <Text style={styles.approveBtnText}>Approve</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.pendPayBtn]}
+                  onPress={() =>
+                    Alert.alert('Pending Payment', `Mark ${item.orderNumber} as Pending Payment?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Confirm', onPress: () => updateStatusMutation.mutate({ id: item.id, status: 11 }) },
+                    ])
+                  }
+                >
+                  <Text style={styles.pendPayBtnText}>Pend Payment</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </Card>
         )}
       />
     </SafeAreaView>
@@ -117,4 +156,10 @@ const styles = StyleSheet.create({
   company: { fontSize: 13, color: Colors.textSecondary, marginBottom: 8 },
   meta: { flexDirection: 'row', justifyContent: 'space-between' },
   metaText: { fontSize: 12, color: Colors.textMuted },
+  quickActions: { flexDirection: 'row', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  actionBtn: { flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: 'center' },
+  approveBtn: { backgroundColor: Colors.successLight },
+  approveBtnText: { fontSize: 12, fontWeight: '700', color: Colors.success },
+  pendPayBtn: { backgroundColor: Colors.orangeLight },
+  pendPayBtnText: { fontSize: 12, fontWeight: '700', color: Colors.orange },
 });
