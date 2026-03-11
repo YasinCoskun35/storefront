@@ -47,4 +47,21 @@ public class PartnerAuthController : ControllerBase
             ? Ok(result.Value)
             : NotFound(new { error = result.Error.Code, message = result.Error.Message });
     }
+
+    /// <summary>
+    /// Get current partner's account balance and transaction history
+    /// </summary>
+    [HttpGet("account")]
+    [Authorize(Roles = "Partner")]
+    public async Task<IActionResult> GetAccount(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("User ID not found");
+
+        var result = await _mediator.Send(new GetPartnerAccountQuery(userId), cancellationToken);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { error = result.Error.Code, message = result.Error.Message });
+    }
 }

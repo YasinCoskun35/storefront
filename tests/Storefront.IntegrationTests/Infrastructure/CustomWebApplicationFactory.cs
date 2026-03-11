@@ -8,6 +8,7 @@ using Storefront.Modules.Catalog.Core.Application.Interfaces;
 using Storefront.Modules.Catalog.Infrastructure.Persistence;
 using Storefront.Modules.Content.Infrastructure.Persistence;
 using Storefront.Modules.Identity.Infrastructure.Persistence;
+using Storefront.Modules.Orders.Infrastructure.Persistence;
 using NSubstitute;
 using Testcontainers.PostgreSql;
 
@@ -50,6 +51,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                 options.UseNpgsql(connectionString, x =>
                     x.MigrationsHistoryTable("__EFMigrationsHistory_Content", "content")));
 
+            services.AddDbContext<OrdersDbContext>(options =>
+                options.UseNpgsql(connectionString, x =>
+                    x.MigrationsHistoryTable("__EFMigrationsHistory_Orders", "orders")));
+
             // Mock IImageUploadService to avoid file system operations during tests
             var mockImageUploadService = Substitute.For<IImageUploadService>();
             mockImageUploadService.QueueImageForProcessingAsync(
@@ -78,7 +83,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         var descriptors = services.Where(d =>
             d.ServiceType == typeof(DbContextOptions<IdentityDbContext>) ||
             d.ServiceType == typeof(DbContextOptions<CatalogDbContext>) ||
-            d.ServiceType == typeof(DbContextOptions<ContentDbContext>))
+            d.ServiceType == typeof(DbContextOptions<ContentDbContext>) ||
+            d.ServiceType == typeof(DbContextOptions<OrdersDbContext>))
             .ToList();
 
         foreach (var descriptor in descriptors)
@@ -99,6 +105,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
             var contentContext = serviceProvider.GetRequiredService<ContentDbContext>();
             contentContext.Database.EnsureCreated();
+
+            var ordersContext = serviceProvider.GetRequiredService<OrdersDbContext>();
+            ordersContext.Database.EnsureCreated();
         }
         catch (Exception ex)
         {

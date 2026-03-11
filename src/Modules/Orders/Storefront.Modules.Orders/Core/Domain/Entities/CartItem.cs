@@ -16,6 +16,7 @@ public class CartItem
     public string? SelectedVariants { get; set; }
 
     public int Quantity { get; set; } = 1;
+    public decimal? UnitPrice { get; set; }  // Catalog price at time of add-to-cart
 
     public string? CustomizationNotes { get; set; }
 

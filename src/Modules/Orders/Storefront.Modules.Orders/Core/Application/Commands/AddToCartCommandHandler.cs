@@ -9,10 +9,12 @@ namespace Storefront.Modules.Orders.Core.Application.Commands;
 public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<string>>
 {
     private readonly OrdersDbContext _context;
+    private readonly IProductPriceResolver _priceResolver;
 
-    public AddToCartCommandHandler(OrdersDbContext context)
+    public AddToCartCommandHandler(OrdersDbContext context, IProductPriceResolver priceResolver)
     {
         _context = context;
+        _priceResolver = priceResolver;
     }
 
     public async Task<Result<string>> Handle(AddToCartCommand request, CancellationToken cancellationToken)
@@ -50,6 +52,9 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
         }
         else
         {
+            // Capture catalog price at add-to-cart time
+            var unitPrice = await _priceResolver.GetPriceAsync(request.ProductId, cancellationToken);
+
             var cartItem = new CartItem
             {
                 CartId = cart.Id,
@@ -58,6 +63,7 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
                 ProductSKU = request.ProductSKU,
                 ProductImageUrl = request.ProductImageUrl,
                 Quantity = request.Quantity,
+                UnitPrice = unitPrice,
                 SelectedVariants = request.SelectedVariants,
                 CustomizationNotes = request.CustomizationNotes,
                 CreatedAt = DateTime.UtcNow

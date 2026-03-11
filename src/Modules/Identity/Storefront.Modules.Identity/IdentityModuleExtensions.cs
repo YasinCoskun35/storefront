@@ -69,9 +69,15 @@ public static class IdentityModuleExtensions
         // Register application services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IdentityDataSeeder>();
-        
+
         // Register PasswordHasher for PartnerUser
         services.AddScoped<IPasswordHasher<PartnerUser>, PasswordHasher<PartnerUser>>();
+
+        // Register partner discount resolver (used by Orders module via SharedKernel interface)
+        services.AddScoped<Storefront.SharedKernel.IPartnerDiscountResolver, IdentityPartnerDiscountResolver>();
+
+        // Register partner account service (used by Orders module via SharedKernel interface)
+        services.AddScoped<Storefront.SharedKernel.IPartnerAccountService, IdentityPartnerAccountService>();
 
         // Register MediatR handlers from this assembly
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(LoginUserCommand).Assembly));

@@ -18,6 +18,7 @@ public record CartItemDto(
     string ProductSKU,
     string? ProductImageUrl,
     int Quantity,
+    decimal? UnitPrice,
     string? SelectedVariants,
     string? CustomizationNotes
 );

@@ -42,7 +42,8 @@ public static class CatalogModuleExtensions
 
         // Register services
         services.AddScoped<IImageUploadService, ImageUploadService>();
-// Register background service
+        services.AddScoped<Storefront.SharedKernel.IProductPriceResolver, CatalogProductPriceResolver>();
+        // Register background service
         services.AddHostedService<ImageProcessingBackgroundService>();
 
         // Register MediatR handlers from this assembly

@@ -10,10 +10,12 @@ namespace Storefront.Modules.Orders.Core.Application.Commands;
 public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Result<string>>
 {
     private readonly OrdersDbContext _context;
+    private readonly IPartnerDiscountResolver _discountResolver;
 
-    public CreateOrderCommandHandler(OrdersDbContext context)
+    public CreateOrderCommandHandler(OrdersDbContext context, IPartnerDiscountResolver discountResolver)
     {
         _context = context;
+        _discountResolver = discountResolver;
     }
 
     public async Task<Result<string>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -26,6 +28,8 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
         {
             return Error.Validation("Order.EmptyCart", "Cannot create order from empty cart");
         }
+
+        var discountRate = await _discountResolver.GetDiscountRateAsync(request.PartnerCompanyId, cancellationToken);
 
         var orderCount = await _context.Orders.CountAsync(cancellationToken);
         var orderNumber = $"ORD-{DateTime.UtcNow:yyyy}-{(orderCount + 1):D4}";
@@ -47,12 +51,33 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
                 ? DateTime.SpecifyKind(request.RequestedDeliveryDate.Value, DateTimeKind.Utc)
                 : null,
             Notes = request.Notes,
+            Currency = "TRY",
             CreatedAt = DateTime.UtcNow,
             SubmittedAt = DateTime.UtcNow
         };
 
+        decimal subTotal = 0;
+        decimal totalDiscount = 0;
+
         foreach (var cartItem in cart.Items)
         {
+            decimal? discountedPrice = null;
+            decimal? itemDiscount = null;
+            decimal? totalPrice = null;
+
+            if (cartItem.UnitPrice.HasValue && cartItem.UnitPrice.Value > 0)
+            {
+                var catalogPrice = cartItem.UnitPrice.Value;
+                discountedPrice = discountRate > 0
+                    ? Math.Round(catalogPrice * (1 - discountRate / 100m), 2)
+                    : catalogPrice;
+                itemDiscount = Math.Round((catalogPrice - discountedPrice.Value) * cartItem.Quantity, 2);
+                totalPrice = Math.Round(discountedPrice.Value * cartItem.Quantity, 2);
+
+                subTotal += discountedPrice.Value * cartItem.Quantity;
+                totalDiscount += itemDiscount.Value;
+            }
+
             var orderItem = new OrderItem
             {
                 OrderId = order.Id,
@@ -63,6 +88,9 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
                 Quantity = cartItem.Quantity,
                 SelectedVariants = cartItem.SelectedVariants,
                 CustomizationNotes = cartItem.CustomizationNotes,
+                UnitPrice = discountedPrice,
+                Discount = itemDiscount,
+                TotalPrice = totalPrice,
                 DisplayOrder = 0,
                 CreatedAt = DateTime.UtcNow
             };
@@ -70,10 +98,18 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
             order.Items.Add(orderItem);
         }
 
+        if (subTotal > 0)
+        {
+            order.SubTotal = subTotal;
+            order.Discount = totalDiscount;
+            order.TotalAmount = subTotal;
+        }
+
         var systemComment = new OrderComment
         {
             OrderId = order.Id,
-            Content = $"Order created with {cart.Items.Count} item(s)",
+            Content = $"Order created with {cart.Items.Count} item(s)" +
+                      (discountRate > 0 ? $" · {discountRate}% partner discount applied" : string.Empty),
             Type = CommentType.StatusChange,
             AuthorId = request.PartnerUserId,
             AuthorName = "System",

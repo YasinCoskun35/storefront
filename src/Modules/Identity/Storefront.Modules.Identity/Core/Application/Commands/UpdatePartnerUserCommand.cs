@@ -12,7 +12,8 @@ public sealed record UpdatePartnerUserCommand(
     string LastName,
     string? Phone,
     string Role,
-    bool IsActive
+    bool IsActive,
+    List<string>? Scopes = null
 ) : IRequest<Result>;
 
 public class UpdatePartnerUserCommandHandler : IRequestHandler<UpdatePartnerUserCommand, Result>
@@ -40,6 +41,7 @@ public class UpdatePartnerUserCommandHandler : IRequestHandler<UpdatePartnerUser
         user.Phone = request.Phone;
         user.Role = role;
         user.IsActive = request.IsActive;
+        user.Scopes = request.Scopes is not null ? string.Join(',', request.Scopes) : user.Scopes;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);

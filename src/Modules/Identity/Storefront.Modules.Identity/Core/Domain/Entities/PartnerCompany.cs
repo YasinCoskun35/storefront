@@ -38,7 +38,14 @@ public class PartnerCompany
     // Timestamps
     public DateTime? UpdatedAt { get; set; }
     
+    // Pricing Policy
+    public decimal DiscountRate { get; set; } = 0;  // Percentage 0–100
+
+    // Current Account (Cari Hesap)
+    public decimal CurrentBalance { get; set; } = 0;  // Positive = partner owes money
+
     // Navigation Properties
     public virtual ICollection<PartnerUser> Users { get; set; } = new List<PartnerUser>();
     public virtual ICollection<PartnerContact> Contacts { get; set; } = new List<PartnerContact>();
+    public virtual ICollection<PartnerAccountTransaction> AccountTransactions { get; set; } = new List<PartnerAccountTransaction>();
 }

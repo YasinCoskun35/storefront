@@ -39,6 +39,7 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, Result<CartDto>
                 i.ProductSKU,
                 i.ProductImageUrl,
                 i.Quantity,
+                i.UnitPrice,
                 i.SelectedVariants,
                 i.CustomizationNotes
             )).ToList()

@@ -60,6 +60,7 @@ public class OrdersDbContext : DbContext
             entity.Property(ci => ci.ProductSKU).IsRequired().HasMaxLength(100);
             entity.Property(ci => ci.ProductImageUrl).HasMaxLength(1000);
             entity.Property(ci => ci.SelectedVariants).HasColumnType("text");
+            entity.Property(ci => ci.UnitPrice).HasColumnType("decimal(18,2)");
             entity.Property(ci => ci.CustomizationNotes).HasMaxLength(2000);
 
             entity.HasOne(ci => ci.Cart)

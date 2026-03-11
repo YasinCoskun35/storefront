@@ -12,5 +12,6 @@ public enum OrderStatus
     Shipping = 7,       // In transit
     Delivered = 8,      // Delivered to partner
     Cancelled = 9,      // Order cancelled
-    Rejected = 10       // Quote rejected
+    Rejected = 10,      // Quote rejected
+    PendingPayment = 11 // Approved but awaiting payment
 }

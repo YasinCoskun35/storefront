@@ -126,7 +126,8 @@ public class AdminPartnersController : ControllerBase
             request.LastName,
             request.Email,
             request.Password,
-            request.Role
+            request.Role,
+            request.Scopes
         );
 
         var result = await _mediator.Send(command);
@@ -172,7 +173,8 @@ public class AdminPartnersController : ControllerBase
             request.LastName,
             request.Phone,
             request.Role,
-            request.IsActive
+            request.IsActive,
+            request.Scopes
         );
 
         var result = await _mediator.Send(command);
@@ -201,6 +203,71 @@ public class AdminPartnersController : ControllerBase
             : result.Error.Type == "NotFound"
                 ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
                 : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
+
+    /// <summary>
+    /// Update partner pricing policy (discount rate) (admin only)
+    /// </summary>
+    [HttpPut("{id}/pricing")]
+    public async Task<IActionResult> UpdatePartnerPricing(string id, [FromBody] UpdatePartnerPricingRequest request)
+    {
+        var command = new UpdatePartnerPricingCommand(id, request.DiscountRate);
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Ok(new { message = "Pricing updated successfully" })
+            : result.Error.Type switch
+            {
+                "NotFound" => NotFound(new { error = result.Error.Code, message = result.Error.Message }),
+                "Validation" => BadRequest(new { error = result.Error.Code, message = result.Error.Message }),
+                _ => BadRequest(new { error = result.Error.Code, message = result.Error.Message })
+            };
+    }
+
+    /// <summary>
+    /// Record an account transaction (debit/credit) for a partner (admin only)
+    /// </summary>
+    [HttpPost("{id}/account/transactions")]
+    public async Task<IActionResult> RecordAccountTransaction(string id, [FromBody] RecordTransactionRequest request)
+    {
+        var adminUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("Admin user ID not found");
+
+        if (!System.Enum.TryParse<Storefront.Modules.Identity.Core.Domain.Enums.TransactionType>(request.Type, true, out var transactionType))
+        {
+            return BadRequest(new { error = "Transaction.InvalidType", message = "Invalid transaction type" });
+        }
+
+        Storefront.Modules.Identity.Core.Domain.Enums.PaymentMethod? paymentMethod = null;
+        if (!string.IsNullOrWhiteSpace(request.PaymentMethod))
+        {
+            if (!System.Enum.TryParse<Storefront.Modules.Identity.Core.Domain.Enums.PaymentMethod>(request.PaymentMethod, true, out var pm))
+            {
+                return BadRequest(new { error = "Transaction.InvalidPaymentMethod", message = "Invalid payment method" });
+            }
+            paymentMethod = pm;
+        }
+
+        var command = new RecordAccountTransactionCommand(
+            id,
+            transactionType,
+            request.Amount,
+            paymentMethod,
+            request.OrderReference,
+            request.Notes,
+            adminUserId
+        );
+
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Created($"/api/identity/admin/partners/{id}/account/transactions/{result.Value}", new { id = result.Value })
+            : result.Error.Type switch
+            {
+                "NotFound" => NotFound(new { error = result.Error.Code, message = result.Error.Message }),
+                "Validation" => BadRequest(new { error = result.Error.Code, message = result.Error.Message }),
+                _ => BadRequest(new { error = result.Error.Code, message = result.Error.Message })
+            };
     }
 }
 
@@ -235,7 +302,8 @@ public record AddPartnerUserRequest(
     string LastName,
     string Email,
     string Password,
-    string Role
+    string Role,
+    List<string>? Scopes = null
 );
 
 public record UpdatePartnerUserRequest(
@@ -243,7 +311,16 @@ public record UpdatePartnerUserRequest(
     string LastName,
     string? Phone,
     string Role,
-    bool IsActive
+    bool IsActive,
+    List<string>? Scopes = null
 );
 
 public record ResetPasswordRequest(string NewPassword);
+public record UpdatePartnerPricingRequest(decimal DiscountRate);
+public record RecordTransactionRequest(
+    string Type,
+    decimal Amount,
+    string? PaymentMethod,
+    string? OrderReference,
+    string? Notes
+);

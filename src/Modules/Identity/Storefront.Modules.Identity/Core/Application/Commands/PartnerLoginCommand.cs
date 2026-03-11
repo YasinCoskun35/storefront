@@ -21,7 +21,8 @@ public record PartnerUserInfo(
     string FirstName,
     string LastName,
     string Role,
-    PartnerCompanyInfo Company
+    PartnerCompanyInfo Company,
+    decimal DiscountRate = 0
 );
 
 public record PartnerCompanyInfo(

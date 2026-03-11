@@ -1,3 +1,4 @@
+using System.Globalization;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -111,7 +112,8 @@ public class PartnerLoginCommandHandler : IRequestHandler<PartnerLoginCommand, R
                     user.Company.Id,
                     user.Company.CompanyName,
                     user.Company.Status.ToString()
-                )
+                ),
+                user.Company.DiscountRate
             )
         );
 
@@ -133,9 +135,11 @@ public class PartnerLoginCommandHandler : IRequestHandler<PartnerLoginCommand, R
             new Claim(JwtRegisteredClaimNames.FamilyName, user.LastName),
             new Claim(ClaimTypes.Role, "Partner"),
             new Claim("role", user.Role.ToString()),
+            new Claim("scopes", user.Scopes ?? string.Empty),
             new Claim("companyId", user.PartnerCompanyId),
             new Claim("companyName", user.Company.CompanyName),
             new Claim("type", "Partner"),
+            new Claim("discountRate", user.Company.DiscountRate.ToString(CultureInfo.InvariantCulture)),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

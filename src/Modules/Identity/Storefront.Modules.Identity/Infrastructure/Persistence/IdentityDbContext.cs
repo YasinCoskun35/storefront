@@ -15,6 +15,7 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<PartnerCompany> PartnerCompanies => Set<PartnerCompany>();
     public DbSet<PartnerUser> PartnerUsers => Set<PartnerUser>();
     public DbSet<PartnerContact> PartnerContacts => Set<PartnerContact>();
+    public DbSet<PartnerAccountTransaction> PartnerAccountTransactions => Set<PartnerAccountTransaction>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -92,7 +93,10 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             
             entity.Property(pc => pc.Status).IsRequired();
             entity.Property(pc => pc.CreatedAt).IsRequired();
-            
+
+            entity.Property(pc => pc.DiscountRate).HasColumnType("decimal(5,2)");
+            entity.Property(pc => pc.CurrentBalance).HasColumnType("decimal(18,2)");
+
             entity.HasIndex(pc => pc.TaxId).IsUnique();
             entity.HasIndex(pc => pc.Email);
             entity.HasIndex(pc => pc.Status);
@@ -111,7 +115,8 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             entity.Property(pu => pu.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(pu => pu.LastName).IsRequired().HasMaxLength(100);
             entity.Property(pu => pu.Phone).HasMaxLength(20);
-            
+            entity.Property(pu => pu.Scopes).HasMaxLength(500);
+
             entity.Property(pu => pu.Role).IsRequired();
             entity.Property(pu => pu.IsActive).IsRequired();
             entity.Property(pu => pu.EmailConfirmed).IsRequired();
@@ -151,6 +156,28 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             
             entity.HasIndex(pc => pc.PartnerCompanyId);
             entity.HasIndex(pc => pc.Email);
+        });
+
+        // Configure PartnerAccountTransaction
+        builder.Entity<PartnerAccountTransaction>(entity =>
+        {
+            entity.ToTable("PartnerAccountTransactions");
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Id).HasMaxLength(450);
+
+            entity.Property(t => t.PartnerCompanyId).IsRequired().HasMaxLength(450);
+            entity.Property(t => t.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(t => t.OrderReference).HasMaxLength(200);
+            entity.Property(t => t.Notes).HasMaxLength(1000);
+            entity.Property(t => t.CreatedBy).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(t => t.Company)
+                .WithMany(pc => pc.AccountTransactions)
+                .HasForeignKey(t => t.PartnerCompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(t => t.PartnerCompanyId);
+            entity.HasIndex(t => t.CreatedAt);
         });
     }
 }

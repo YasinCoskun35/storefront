@@ -10,10 +10,12 @@ namespace Storefront.Modules.Orders.Core.Application.Commands;
 public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, Result>
 {
     private readonly OrdersDbContext _context;
+    private readonly IPartnerAccountService _partnerAccountService;
 
-    public UpdateOrderStatusCommandHandler(OrdersDbContext context)
+    public UpdateOrderStatusCommandHandler(OrdersDbContext context, IPartnerAccountService partnerAccountService)
     {
         _context = context;
+        _partnerAccountService = partnerAccountService;
     }
 
     public async Task<Result> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
@@ -60,8 +62,21 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
         };
 
         order.Comments.Add(statusComment);
-
         await _context.SaveChangesAsync(cancellationToken);
+
+        // When confirmed with a priced total, debit the partner's current account
+        if (request.NewStatus == OrderStatus.Confirmed
+            && !string.IsNullOrEmpty(order.PartnerCompanyId)
+            && order.TotalAmount.HasValue
+            && order.TotalAmount.Value > 0)
+        {
+            await _partnerAccountService.RecordOrderDebitAsync(
+                order.PartnerCompanyId,
+                order.OrderNumber,
+                order.TotalAmount.Value,
+                request.UpdatedBy,
+                cancellationToken);
+        }
 
         return Result.Success();
     }

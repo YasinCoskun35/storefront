@@ -27,7 +27,10 @@ public record PartnerCompanyDetailsDto(
     string? ApprovedBy,
     string? ApprovalNotes,
     List<PartnerUserDto> Users,
-    List<PartnerContactDto> Contacts
+    List<PartnerContactDto> Contacts,
+    decimal DiscountRate,
+    decimal CurrentBalance,
+    List<PartnerAccountTransactionDto> Transactions
 );
 
 public record PartnerUserDto(
@@ -38,7 +41,8 @@ public record PartnerUserDto(
     string Role,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime? LastLoginAt
+    DateTime? LastLoginAt,
+    List<string> Scopes
 );
 
 public record PartnerContactDto(
@@ -48,4 +52,15 @@ public record PartnerContactDto(
     string Email,
     string Phone,
     bool IsPrimary
+);
+
+public record PartnerAccountTransactionDto(
+    string Id,
+    string Type,
+    decimal Amount,
+    string? PaymentMethod,
+    string? OrderReference,
+    string? Notes,
+    string CreatedBy,
+    DateTime CreatedAt
 );

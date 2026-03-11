@@ -13,6 +13,7 @@ public record PartnerProfileDto(
     string? JobTitle,
     string? PhoneNumber,
     bool IsAdmin,
+    decimal DiscountRate,
     PartnerCompanyProfileDto Company
 );
 
@@ -56,6 +57,7 @@ public class GetPartnerProfileQueryHandler : IRequestHandler<GetPartnerProfileQu
             null,
             user.Phone,
             user.Role == Core.Domain.Enums.PartnerRole.CompanyAdmin,
+            user.Company.DiscountRate,
             new PartnerCompanyProfileDto(
                 user.Company.Id,
                 user.Company.CompanyName,

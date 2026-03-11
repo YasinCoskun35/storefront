@@ -14,7 +14,8 @@ public sealed record AddPartnerUserCommand(
     string LastName,
     string Email,
     string Password,
-    string Role
+    string Role,
+    List<string>? Scopes = null
 ) : IRequest<Result<string>>;
 
 public class AddPartnerUserCommandHandler : IRequestHandler<AddPartnerUserCommand, Result<string>>
@@ -54,6 +55,7 @@ public class AddPartnerUserCommandHandler : IRequestHandler<AddPartnerUserComman
             FirstName = request.FirstName,
             LastName = request.LastName,
             Role = role,
+            Scopes = request.Scopes is { Count: > 0 } ? string.Join(',', request.Scopes) : null,
             IsActive = true,
             EmailConfirmed = false,
             CreatedAt = DateTime.UtcNow
