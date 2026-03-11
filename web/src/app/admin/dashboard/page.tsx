@@ -5,6 +5,7 @@ import { catalogApi } from "@/lib/api";
 import { adminOrdersApi } from "@/lib/api/orders";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
 import {
   Package,
   ShoppingCart,
@@ -17,6 +18,7 @@ import {
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
+  const t = useTranslations("dashboard");
   const { data: productsData } = useQuery({
     queryKey: ["admin-products-stats"],
     queryFn: () => catalogApi.searchProducts({ pageSize: 1 }),
@@ -34,38 +36,38 @@ export default function AdminDashboardPage() {
 
   const stats = [
     {
-      title: "Total Products",
+      title: t("totalProducts"),
       value: productsData?.totalCount ?? 0,
       icon: Package,
-      description: "In catalog",
+      description: t("inCatalog"),
       href: "/admin/products",
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
-      title: "Total Orders",
+      title: t("totalOrders"),
       value: orderStats?.totalOrders ?? 0,
       icon: ShoppingCart,
-      description: "All time",
+      description: t("allTime"),
       href: "/admin/orders",
       color: "text-purple-600",
       bg: "bg-purple-50",
     },
     {
-      title: "Pending Orders",
+      title: t("pendingOrders"),
       value: orderStats?.pendingOrders ?? 0,
       icon: Clock,
-      description: "Awaiting quote",
+      description: t("awaitingQuote"),
       href: "/admin/orders?status=Pending",
       color: "text-yellow-600",
       bg: "bg-yellow-50",
       alert: true,
     },
     {
-      title: "Active Partners",
+      title: t("activePartners"),
       value: orderStats?.totalPartners ?? 0,
       icon: Users,
-      description: "With orders",
+      description: t("withOrders"),
       href: "/admin/partners",
       color: "text-green-600",
       bg: "bg-green-50",
@@ -75,8 +77,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-3xl font-bold text-secondary">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview of your store activity</p>
+        <h1 className="font-display text-3xl font-bold text-secondary">{t("adminTitle")}</h1>
+        <p className="text-muted-foreground mt-1">{t("adminDesc")}</p>
       </div>
 
       {/* Stats Grid */}
@@ -100,7 +102,7 @@ export default function AdminDashboardPage() {
                     {stat.description}
                     {stat.alert && stat.value > 0 && (
                       <Badge variant="destructive" className="text-xs py-0 px-1">
-                        Action needed
+                        {t("actionNeeded")}
                       </Badge>
                     )}
                   </p>
@@ -115,20 +117,20 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Order Status</CardTitle>
+            <CardTitle className="text-base">{t("orderStatus")}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Active (In Progress)</span>
+              <span className="text-sm text-muted-foreground">{t("activeInProgress")}</span>
               <span className="font-semibold">{orderStats?.activeOrders ?? 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Pending Quotes</span>
+              <span className="text-sm text-muted-foreground">{t("pendingQuotes")}</span>
               <span className="font-semibold text-yellow-600">{orderStats?.pendingOrders ?? 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Completed</span>
+              <span className="text-sm text-muted-foreground">{t("completed")}</span>
               <span className="font-semibold text-green-600">{orderStats?.completedOrders ?? 0}</span>
             </div>
           </CardContent>
@@ -136,14 +138,14 @@ export default function AdminDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
+            <CardTitle className="text-base">{t("quickActions")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {[
-              { href: "/admin/products/new", label: "Add New Product", desc: "Create a new product listing" },
-              { href: "/admin/orders", label: "View Pending Orders", desc: "Process and quote orders" },
-              { href: "/admin/partners", label: "Manage Partners", desc: "View and manage business partners" },
-              { href: "/admin/color-charts", label: "Color Charts", desc: "Manage material/color options" },
+              { href: "/admin/products/new", label: t("addNewProduct"), desc: t("addNewProductDesc") },
+              { href: "/admin/orders", label: t("viewPendingOrders"), desc: t("viewPendingOrdersDesc") },
+              { href: "/admin/partners", label: t("managePartners"), desc: t("managePartnersDesc") },
+              { href: "/admin/color-charts", label: t("colorCharts"), desc: t("colorChartsDesc") },
             ].map((action) => (
               <Link
                 key={action.href}
@@ -164,7 +166,7 @@ export default function AdminDashboardPage() {
       {/* Recent Orders */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Recent Orders</CardTitle>
+          <CardTitle className="text-base">{t("recentOrders")}</CardTitle>
           <Link href="/admin/orders" className="text-sm text-primary hover:underline flex items-center gap-1">
             View all <ArrowRight className="h-3 w-3" />
           </Link>
@@ -203,7 +205,7 @@ export default function AdminDashboardPage() {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p>No orders yet</p>
+              <p>{t("noOrdersYet")}</p>
             </div>
           )}
         </CardContent>

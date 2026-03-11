@@ -19,6 +19,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { partnerOrdersApi } from '@/lib/api/orders';
+import { useTranslations } from 'next-intl';
 
 interface PartnerUser {
   id: string;
@@ -35,6 +36,9 @@ interface PartnerUser {
 
 export default function PartnerDashboardPage() {
   const router = useRouter();
+  const t = useTranslations('dashboard');
+  const ta = useTranslations('auth');
+  const tc = useTranslations('common');
   const [user, setUser] = useState<PartnerUser | null>(null);
   const [tokenLoaded, setTokenLoaded] = useState(false);
 
@@ -99,14 +103,14 @@ export default function PartnerDashboardPage() {
               <Building2 className="h-8 w-8 text-blue-600" />
               <div>
                 <h1 className="text-xl font-bold">{user.company.name}</h1>
-                <p className="text-sm text-gray-600">Partner Portal</p>
+                <p className="text-sm text-gray-600">{t("partnerTitle")}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <Link href="/partner/cart">
                 <Button variant="ghost" size="sm">
                   <ShoppingCart className="h-5 w-5 mr-2" />
-                  Cart
+                  {t("myCart")}
                 </Button>
               </Link>
               <Link href="/partner/profile">
@@ -117,7 +121,7 @@ export default function PartnerDashboardPage() {
               </Link>
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="h-5 w-5 mr-2" />
-                Logout
+                {ta("logout")}
               </Button>
             </div>
           </div>
@@ -128,10 +132,10 @@ export default function PartnerDashboardPage() {
         {/* Welcome */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user.firstName}!
+            {t("welcomeBack")} {user.firstName}!
           </h2>
           <p className="text-gray-600 mt-1">
-            {user.role === 'CompanyAdmin' ? 'Company Administrator' : 'User'} •{' '}
+            {user.role === 'CompanyAdmin' ? t("companyAdmin") : t("user")} •{' '}
             <span className="font-medium">{user.company.name}</span>
           </p>
         </div>
@@ -140,28 +144,28 @@ export default function PartnerDashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
             {
-              label: 'Total Orders',
+              label: t('totalOrdersLabel'),
               value: stats?.totalOrders ?? 0,
               icon: FileText,
               color: 'text-purple-600',
               bg: 'bg-purple-50',
             },
             {
-              label: 'Pending Quote',
+              label: t('pendingQuote'),
               value: stats?.pendingOrders ?? 0,
               icon: Clock,
               color: 'text-yellow-600',
               bg: 'bg-yellow-50',
             },
             {
-              label: 'Active Orders',
+              label: t('activeOrders'),
               value: stats?.activeOrders ?? 0,
               icon: Package,
               color: 'text-blue-600',
               bg: 'bg-blue-50',
             },
             {
-              label: 'Completed',
+              label: t('completed'),
               value: stats?.completedOrders ?? 0,
               icon: CheckCircle,
               color: 'text-green-600',
@@ -194,13 +198,13 @@ export default function PartnerDashboardPage() {
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-2">
                 <Package className="h-5 w-5 text-blue-600" />
               </div>
-              <CardTitle className="text-base">Browse Catalog</CardTitle>
-              <CardDescription>View our complete collection</CardDescription>
+              <CardTitle className="text-base">{t("browseCatalog")}</CardTitle>
+              <CardDescription>{t("browseCatalogDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Link href="/products">
                 <Button variant="outline" className="w-full">
-                  View Products
+                  {t("viewProducts")}
                 </Button>
               </Link>
             </CardContent>
@@ -211,12 +215,12 @@ export default function PartnerDashboardPage() {
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-2">
                 <ShoppingCart className="h-5 w-5 text-green-600" />
               </div>
-              <CardTitle className="text-base">My Cart</CardTitle>
-              <CardDescription>Review and submit your cart</CardDescription>
+              <CardTitle className="text-base">{t("myCart")}</CardTitle>
+              <CardDescription>{t("myCartDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Link href="/partner/cart">
-                <Button className="w-full">Go to Cart</Button>
+                <Button className="w-full">{t("goToCart")}</Button>
               </Link>
             </CardContent>
           </Card>
@@ -226,12 +230,12 @@ export default function PartnerDashboardPage() {
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-2">
                 <FileText className="h-5 w-5 text-purple-600" />
               </div>
-              <CardTitle className="text-base">Order History</CardTitle>
-              <CardDescription>Track your orders and quotes</CardDescription>
+              <CardTitle className="text-base">{t("orderHistory")}</CardTitle>
+              <CardDescription>{t("orderHistoryDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Link href="/partner/orders">
-                <Button variant="outline" className="w-full">View Orders</Button>
+                <Button variant="outline" className="w-full">{t("viewOrders")}</Button>
               </Link>
             </CardContent>
           </Card>
@@ -241,12 +245,12 @@ export default function PartnerDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Recent Orders</CardTitle>
+              <CardTitle className="text-base">{t("recentOrders")}</CardTitle>
               <Link
                 href="/partner/orders"
                 className="text-sm text-blue-600 hover:underline flex items-center gap-1"
               >
-                View all <ArrowRight className="h-3 w-3" />
+                {t("viewOrders")} <ArrowRight className="h-3 w-3" />
               </Link>
             </CardHeader>
             <CardContent>
@@ -276,8 +280,8 @@ export default function PartnerDashboardPage() {
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <Package className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                  <p className="text-sm">No orders yet</p>
-                  <p className="text-xs mt-1">Start by browsing products</p>
+                  <p className="text-sm">{t("noOrdersYet")}</p>
+                  <p className="text-xs mt-1">{t("startBrowsing")}</p>
                 </div>
               )}
             </CardContent>
@@ -288,20 +292,20 @@ export default function PartnerDashboardPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Company Info
+                  {t("companyInfo")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Company</span>
+                  <span className="text-sm text-gray-600">{t("company")}</span>
                   <span className="font-medium">{user.company.name}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Status</span>
+                  <span className="text-sm text-gray-600">{tc("status")}</span>
                   <Badge className="bg-green-100 text-green-800">{user.company.status}</Badge>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Your Role</span>
+                  <span className="text-sm text-gray-600">{t("yourRole")}</span>
                   <span className="text-sm font-medium">{user.role}</span>
                 </div>
               </CardContent>

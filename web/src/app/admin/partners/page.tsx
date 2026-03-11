@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { partnerAdminApi } from '@/lib/api/partners';
@@ -39,6 +40,7 @@ const statusIcons = {
 };
 
 export default function AdminPartnersPage() {
+  const t = useTranslations('partners');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState(1);
@@ -63,13 +65,13 @@ export default function AdminPartnersPage() {
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Partner Companies</h1>
-          <p className="text-gray-600 mt-2">Manage B2B partner accounts</p>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <p className="text-gray-600 mt-2">{t('titleDesc')}</p>
         </div>
         <Link href="/admin/partners/new">
           <Button>
             <Building2 className="h-4 w-4 mr-2" />
-            Create Partner
+            {t('createPartner')}
           </Button>
         </Link>
       </div>
@@ -82,7 +84,7 @@ export default function AdminPartnersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search by company name, tax ID, or email..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
@@ -93,7 +95,7 @@ export default function AdminPartnersPage() {
           {/* Status Filter */}
           <Select value={statusFilter || 'all'} onValueChange={handleStatusFilter}>
             <SelectTrigger>
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
@@ -110,23 +112,23 @@ export default function AdminPartnersPage() {
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-600">Total Partners</div>
+            <div className="text-sm text-gray-600">{t('totalPartners')}</div>
             <div className="text-2xl font-bold">{data.totalCount}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-yellow-800">Pending Approval</div>
+            <div className="text-sm text-yellow-800">{t('pendingApproval')}</div>
             <div className="text-2xl font-bold text-yellow-900">
               {data.items.filter((p) => p.status === 'Pending').length}
             </div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-green-800">Active</div>
+            <div className="text-sm text-green-800">{t('active')}</div>
             <div className="text-2xl font-bold text-green-900">
               {data.items.filter((p) => p.status === 'Active').length}
             </div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-red-800">Suspended</div>
+            <div className="text-sm text-red-800">{t('suspended')}</div>
             <div className="text-2xl font-bold text-red-900">
               {data.items.filter((p) => p.status === 'Suspended').length}
             </div>
@@ -139,27 +141,27 @@ export default function AdminPartnersPage() {
         {isLoading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
-            <p className="mt-4 text-gray-600">Loading partners...</p>
+            <p className="mt-4 text-gray-600">{t('loading')}</p>
           </div>
         ) : error ? (
           <div className="p-8 text-center text-red-600">
-            Error loading partners. Please try again.
+            {t('loadError')}
           </div>
         ) : !data || data.items.length === 0 ? (
           <div className="p-8 text-center text-gray-600">
-            No partners found. {searchTerm && 'Try a different search term.'}
+            {t('noFound')}
           </div>
         ) : (
           <>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Contact</TableHead>
+                  <TableHead>{t('company')}</TableHead>
+                  <TableHead>{t('location')}</TableHead>
+                  <TableHead>{t('contact')}</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Users</TableHead>
-                  <TableHead>Registered</TableHead>
+                  <TableHead>{t('users')}</TableHead>
+                  <TableHead>{t('registered')}</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -171,7 +173,7 @@ export default function AdminPartnersPage() {
                       <TableCell>
                         <div>
                           <div className="font-medium">{partner.companyName}</div>
-                          <div className="text-sm text-gray-500">Tax ID: {partner.taxId}</div>
+                          <div className="text-sm text-gray-500">{t('taxId')} {partner.taxId}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -203,7 +205,7 @@ export default function AdminPartnersPage() {
                         <Link href={`/admin/partners/${partner.id}`}>
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4 mr-1" />
-                            View
+                            {t('view')}
                           </Button>
                         </Link>
                       </TableCell>

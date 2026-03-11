@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ function SettingEditor({ setting, value, onChange }: SettingEditorProps) {
 }
 
 export default function AdminSettingsPage() {
+  const t = useTranslations('settings');
   const queryClient = useQueryClient();
   const [modifiedSettings, setModifiedSettings] = useState<Record<string, string>>({});
 
@@ -85,10 +87,10 @@ export default function AdminSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       setModifiedSettings({});
-      toast.success("Settings saved successfully");
+      toast.success(t("saved"));
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to save settings");
+      toast.error(error.response?.data?.message || t("saveFailed"));
     },
   });
 
@@ -98,7 +100,7 @@ export default function AdminSettingsPage() {
 
   const handleSave = () => {
     if (Object.keys(modifiedSettings).length === 0) {
-      toast.info("No changes to save");
+      toast.info(t("noChanges"));
       return;
     }
     updateMutation.mutate();
@@ -129,15 +131,15 @@ export default function AdminSettingsPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-secondary flex items-center gap-2">
             <Settings2 className="h-8 w-8" />
-            Application Settings
+            {t("title")}
           </h1>
-          <p className="text-muted-foreground">Manage features and configuration</p>
+          <p className="text-muted-foreground">{t("titleDesc")}</p>
         </div>
         {hasChanges && (
           <Button onClick={handleSave} disabled={updateMutation.isPending} size="lg">
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Save Changes ({Object.keys(modifiedSettings).length})
+            {t("saveChanges")} ({Object.keys(modifiedSettings).length})
           </Button>
         )}
       </div>
@@ -150,9 +152,9 @@ export default function AdminSettingsPage() {
                 <CardTitle>{category}</CardTitle>
                 <CardDescription>
                   {category === "Features"
-                    ? "Toggle application features on/off"
+                    ? t("featuresDesc")
                     : category === "General"
-                    ? "General application configuration"
+                    ? t("generalDesc")
                     : `${category} settings`}
                 </CardDescription>
               </CardHeader>
@@ -175,7 +177,7 @@ export default function AdminSettingsPage() {
           <Button onClick={handleSave} disabled={updateMutation.isPending} size="lg" className="shadow-lg">
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Save {Object.keys(modifiedSettings).length} Change{Object.keys(modifiedSettings).length !== 1 ? "s" : ""}
+            {t("saveChanges")} ({Object.keys(modifiedSettings).length})
           </Button>
         </div>
       )}

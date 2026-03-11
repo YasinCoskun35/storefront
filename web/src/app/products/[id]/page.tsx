@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import { catalogApi } from "@/lib/api";
-import { formatPrice, getImageUrl } from "@/lib/utils";
+import { getImageUrl } from "@/lib/utils";
 import { AddToCartSection } from "@/components/products/add-to-cart-section";
 import { ProductGallery } from "@/components/products/product-gallery";
+import { PartnerPriceDisplay } from "@/components/products/partner-price-display";
 import { Badge } from "@/components/ui/badge";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -99,16 +100,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
           {/* Price */}
           {product.price != null && (
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-primary">
-                {formatPrice(product.price)}
-              </span>
-              {product.compareAtPrice != null && product.compareAtPrice > product.price && (
-                <span className="text-lg text-muted-foreground line-through">
-                  {formatPrice(product.compareAtPrice)}
-                </span>
-              )}
-            </div>
+            <PartnerPriceDisplay
+              price={product.price}
+              compareAtPrice={product.compareAtPrice}
+            />
           )}
 
           {/* Stock */}

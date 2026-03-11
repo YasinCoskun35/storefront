@@ -11,6 +11,7 @@ export interface CartItem {
   productSKU: string;
   productImageUrl?: string;
   quantity: number;
+  unitPrice?: number;
   selectedVariants?: string | null;
   customizationNotes?: string;
 }
@@ -263,20 +264,22 @@ export enum OrderStatus {
   Delivered = 8,
   Cancelled = 9,
   Rejected = 10,
+  PendingPayment = 11,
 }
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  [OrderStatus.Draft]: 'Draft',
-  [OrderStatus.Pending]: 'Pending',
-  [OrderStatus.QuoteSent]: 'Quote Sent',
-  [OrderStatus.Confirmed]: 'Confirmed',
-  [OrderStatus.Preparing]: 'Preparing',
-  [OrderStatus.QualityCheck]: 'Quality Check',
-  [OrderStatus.ReadyToShip]: 'Ready to Ship',
-  [OrderStatus.Shipping]: 'Shipping',
-  [OrderStatus.Delivered]: 'Delivered',
-  [OrderStatus.Cancelled]: 'Cancelled',
-  [OrderStatus.Rejected]: 'Rejected',
+  [OrderStatus.Draft]: 'Taslak',
+  [OrderStatus.Pending]: 'Beklemede',
+  [OrderStatus.QuoteSent]: 'Teklif Gönderildi',
+  [OrderStatus.Confirmed]: 'Onaylandı',
+  [OrderStatus.Preparing]: 'Hazırlanıyor',
+  [OrderStatus.QualityCheck]: 'Kalite Kontrol',
+  [OrderStatus.ReadyToShip]: 'Gönderilmeye Hazır',
+  [OrderStatus.Shipping]: 'Kargoda',
+  [OrderStatus.Delivered]: 'Teslim Edildi',
+  [OrderStatus.Cancelled]: 'İptal Edildi',
+  [OrderStatus.Rejected]: 'Reddedildi',
+  [OrderStatus.PendingPayment]: 'Ödeme Bekleniyor',
 };
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
@@ -291,6 +294,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   [OrderStatus.Delivered]: 'bg-green-100 text-green-800',
   [OrderStatus.Cancelled]: 'bg-red-100 text-red-800',
   [OrderStatus.Rejected]: 'bg-red-100 text-red-800',
+  [OrderStatus.PendingPayment]: 'bg-orange-100 text-orange-800',
 };
 
 // ============================================

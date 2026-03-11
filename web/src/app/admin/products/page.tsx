@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { catalogApi, Product } from "@/lib/api";
 import { DataTable } from "@/components/admin/data-table";
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 export default function AdminProductsPage() {
+  const t = useTranslations('products');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
@@ -112,15 +114,15 @@ export default function AdminProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Products</h1>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground">
-            Manage your product catalog
+            {t('titleDesc')}
           </p>
         </div>
         <Link href="/admin/products/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Add Product
+            {t('addProduct')}
           </Button>
         </Link>
       </div>

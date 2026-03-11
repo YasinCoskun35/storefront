@@ -16,6 +16,17 @@ export interface PartnerCompany {
   approvedAt: string | null;
 }
 
+export interface PartnerAccountTransactionDto {
+  id: string;
+  type: 'OrderDebit' | 'PaymentCredit' | 'ManualAdjustment';
+  amount: number;
+  paymentMethod: 'Cash' | 'Check' | 'PromissoryNote' | 'BankTransfer' | null;
+  orderReference: string | null;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface PartnerCompanyDetails extends PartnerCompany {
   address: string;
   postalCode: string;
@@ -28,6 +39,9 @@ export interface PartnerCompanyDetails extends PartnerCompany {
   approvalNotes: string | null;
   users: PartnerUser[];
   contacts: PartnerContact[];
+  discountRate: number;
+  currentBalance: number;
+  transactions: PartnerAccountTransactionDto[];
 }
 
 export interface PartnerUser {
@@ -39,6 +53,7 @@ export interface PartnerUser {
   isActive: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  scopes: string[];
 }
 
 export interface PartnerContact {
@@ -95,6 +110,7 @@ export interface PartnerLoginResponse {
     firstName: string;
     lastName: string;
     role: string;
+    discountRate: number;
     company: {
       id: string;
       name: string;
@@ -149,7 +165,7 @@ export const partnerAdminApi = {
 
   addPartnerUser: async (
     companyId: string,
-    data: { firstName: string; lastName: string; email: string; password: string; role: string }
+    data: { firstName: string; lastName: string; email: string; password: string; role: string; scopes?: string[] }
   ): Promise<{ id: string }> => {
     const response = await api.post(`/api/identity/admin/partners/${companyId}/users`, data);
     return response.data;
@@ -157,7 +173,7 @@ export const partnerAdminApi = {
 
   updatePartnerUser: async (
     userId: string,
-    data: { firstName: string; lastName: string; phone?: string; role: string; isActive: boolean }
+    data: { firstName: string; lastName: string; phone?: string; role: string; isActive: boolean; scopes?: string[] }
   ): Promise<void> => {
     await api.put(`/api/identity/admin/partners/users/${userId}`, data);
   },
@@ -165,12 +181,48 @@ export const partnerAdminApi = {
   resetPartnerUserPassword: async (userId: string, newPassword: string): Promise<void> => {
     await api.put(`/api/identity/admin/partners/users/${userId}/reset-password`, { newPassword });
   },
+
+  updatePricing: async (companyId: string, discountRate: number): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/${companyId}/pricing`, { discountRate });
+  },
+
+  recordTransaction: async (
+    companyId: string,
+    data: {
+      type: string;
+      amount: number;
+      paymentMethod?: string;
+      orderReference?: string;
+      notes?: string;
+    }
+  ): Promise<{ id: string }> => {
+    const response = await api.post(`/api/identity/admin/partners/${companyId}/account/transactions`, data);
+    return response.data;
+  },
 };
+
+export interface PartnerProfileResponse {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  discountRate: number;
+  company: {
+    id: string;
+    name: string;
+    status: string;
+  };
+}
 
 // Partner Public APIs
 export const partnerPublicApi = {
   login: async (data: PartnerLoginData): Promise<PartnerLoginResponse> => {
     const response = await api.post(`/api/identity/partners/auth/login`, data);
+    return response.data;
+  },
+
+  getProfile: async (): Promise<PartnerProfileResponse> => {
+    const response = await api.get(`/api/identity/partners/profile`);
     return response.data;
   },
 };

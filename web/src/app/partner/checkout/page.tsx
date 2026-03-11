@@ -11,9 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ShoppingCart, ArrowLeft, Send } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const t = useTranslations("checkout");
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<CreateOrderRequest>({
@@ -37,13 +39,13 @@ export default function CheckoutPage() {
   const createOrderMutation = useMutation({
     mutationFn: (data: CreateOrderRequest) => partnerOrdersApi.createOrder(data),
     onSuccess: (response) => {
-      toast.success("Order created successfully!");
+      toast.success(t("orderSuccess"));
       queryClient.invalidateQueries({ queryKey: ["partner-cart"] });
       queryClient.invalidateQueries({ queryKey: ["partner-orders"] });
       router.push(`/partner/orders/${response.orderId}`);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create order");
+      toast.error(error.response?.data?.message || t("orderFailed"));
     },
   });
 
@@ -51,7 +53,7 @@ export default function CheckoutPage() {
     e.preventDefault();
     
     if (!cart || cart.itemCount === 0) {
-      toast.error("Your cart is empty");
+      toast.error(t("emptyCartTitle"));
       return;
     }
 
@@ -72,13 +74,13 @@ export default function CheckoutPage() {
         <Card className="p-12 text-center">
           <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-medium text-gray-900 mb-2">
-            Your cart is empty
+            {t("emptyCartTitle")}
           </h2>
           <p className="text-gray-600 mb-6">
-            Add items to your cart before checking out
+            {t("emptyCartDesc")}
           </p>
           <Button onClick={() => router.push("/products")}>
-            Browse Products
+            {t("browseProducts")}
           </Button>
         </Card>
       </div>
@@ -93,20 +95,20 @@ export default function CheckoutPage() {
         className="mb-6"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Cart
+        {t("backToCart")}
       </Button>
 
-      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+      <h1 className="text-3xl font-bold mb-8">{t("title")}</h1>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Forms */}
         <div className="lg:col-span-2 space-y-6">
           {/* Delivery Address */}
           <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Delivery Address</h2>
+            <h2 className="text-lg font-semibold mb-4">{t("deliveryAddress")}</h2>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="deliveryAddress">Street Address *</Label>
+                <Label htmlFor="deliveryAddress">{t("streetAddress")}</Label>
                 <Input
                   id="deliveryAddress"
                   value={formData.deliveryAddress}
@@ -120,7 +122,7 @@ export default function CheckoutPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="deliveryCity">City *</Label>
+                  <Label htmlFor="deliveryCity">{t("city")}</Label>
                   <Input
                     id="deliveryCity"
                     value={formData.deliveryCity}
@@ -131,7 +133,7 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="deliveryState">State/Province *</Label>
+                  <Label htmlFor="deliveryState">{t("state")}</Label>
                   <Input
                     id="deliveryState"
                     value={formData.deliveryState}
@@ -145,7 +147,7 @@ export default function CheckoutPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="deliveryPostalCode">Postal Code *</Label>
+                  <Label htmlFor="deliveryPostalCode">{t("postalCode")}</Label>
                   <Input
                     id="deliveryPostalCode"
                     value={formData.deliveryPostalCode}
@@ -156,7 +158,7 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="deliveryCountry">Country *</Label>
+                  <Label htmlFor="deliveryCountry">{t("country")}</Label>
                   <Input
                     id="deliveryCountry"
                     value={formData.deliveryCountry}
@@ -169,7 +171,7 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <Label htmlFor="deliveryNotes">Delivery Notes</Label>
+                <Label htmlFor="deliveryNotes">{t("deliveryNotes")}</Label>
                 <Textarea
                   id="deliveryNotes"
                   value={formData.deliveryNotes}
@@ -185,11 +187,11 @@ export default function CheckoutPage() {
 
           {/* Order Details */}
           <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Order Details</h2>
+            <h2 className="text-lg font-semibold mb-4">{t("orderDetails")}</h2>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="requestedDeliveryDate">
-                  Requested Delivery Date
+                  {t("requestedDeliveryDate")}
                 </Label>
                 <Input
                   id="requestedDeliveryDate"
@@ -205,7 +207,7 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <Label htmlFor="notes">Additional Notes</Label>
+                <Label htmlFor="notes">{t("additionalNotes")}</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
@@ -223,7 +225,7 @@ export default function CheckoutPage() {
         {/* Right Column: Order Summary */}
         <div className="lg:col-span-1">
           <Card className="p-6 sticky top-4">
-            <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+            <h2 className="text-lg font-semibold mb-4">{t("orderSummary")}</h2>
 
             <div className="space-y-3 mb-6">
               {cart.items.map((item) => (
@@ -241,7 +243,7 @@ export default function CheckoutPage() {
                 <span>{cart.itemCount}</span>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                * Pricing will be provided after order review
+                * {t("pricingNote")}
               </p>
             </div>
 
@@ -252,17 +254,17 @@ export default function CheckoutPage() {
               disabled={createOrderMutation.isPending}
             >
               {createOrderMutation.isPending ? (
-                "Submitting..."
+                t("submitting")
               ) : (
                 <>
                   <Send className="w-5 h-5 mr-2" />
-                  Submit Order Request
+                  {t("submitOrder")}
                 </>
               )}
             </Button>
 
             <p className="text-xs text-gray-500 mt-4 text-center">
-              By submitting, you agree to receive a quote for this order
+              {t("submitNote")}
             </p>
           </Card>
         </div>

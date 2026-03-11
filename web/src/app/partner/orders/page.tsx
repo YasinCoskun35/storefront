@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Package, Search, ChevronRight, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export default function PartnerOrdersPage() {
   const router = useRouter();
+  const t = useTranslations("orders");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -38,9 +40,9 @@ export default function PartnerOrdersPage() {
         <div className="flex items-center gap-3">
           <Package className="w-8 h-8 text-blue-600" />
           <div>
-            <h1 className="text-3xl font-bold">My Orders</h1>
+            <h1 className="text-3xl font-bold">{t("title")}</h1>
             <p className="text-gray-600 mt-1">
-              Track and manage your order requests
+              {t("titleDesc")}
             </p>
           </div>
         </div>
@@ -64,7 +66,7 @@ export default function PartnerOrdersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             type="search"
-            placeholder="Search by order number..."
+            placeholder={t("searchPlaceholder")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -76,7 +78,7 @@ export default function PartnerOrdersPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2 border rounded-md bg-white"
         >
-          <option value="">All Statuses</option>
+          <option value="">{t("allStatuses")}</option>
           <option value="Pending">Pending</option>
           <option value="QuoteSent">Quote Sent</option>
           <option value="Confirmed">Confirmed</option>
@@ -95,16 +97,16 @@ export default function PartnerOrdersPage() {
         <Card className="p-12 text-center">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-medium text-gray-900 mb-2">
-            {searchTerm || statusFilter ? "No orders found" : "No orders yet"}
+            {searchTerm || statusFilter ? t("noOrders") : t("noOrdersYet")}
           </h2>
           <p className="text-gray-600 mb-6">
             {searchTerm || statusFilter
-              ? "Try adjusting your search or filters"
-              : "Create your first order to get started"}
+              ? t("tryAdjusting")
+              : t("startBrowsing")}
           </p>
           {!searchTerm && !statusFilter && (
             <Button onClick={() => router.push("/products")}>
-              Browse Products
+              {t("browseProducts")}
             </Button>
           )}
         </Card>

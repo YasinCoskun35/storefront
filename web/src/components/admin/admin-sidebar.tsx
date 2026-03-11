@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -19,54 +20,55 @@ import { settingsApi } from "@/lib/api/settings";
 
 const allMenuItems = [
   {
-    title: "Dashboard",
+    key: "dashboard",
     href: "/admin/dashboard",
     icon: LayoutDashboard,
   },
   {
-    title: "Products",
+    key: "products",
     href: "/admin/products",
     icon: Package,
   },
   {
-    title: "Categories",
+    key: "categories",
     href: "/admin/categories",
     icon: FolderTree,
   },
   {
-    title: "Partners",
+    key: "partners",
     href: "/admin/partners",
     icon: Handshake,
   },
   {
-    title: "Orders",
+    key: "orders",
     href: "/admin/orders",
     icon: ShoppingBag,
   },
   {
-    title: "Variant Groups",
+    key: "variantGroups",
     href: "/admin/variant-groups",
     icon: Palette,
   },
   {
-    title: "Blog",
+    key: "blog",
     href: "/admin/blog",
     icon: FileText,
     featureKey: "Features.Blog.Enabled",
   },
   {
-    title: "Users",
+    key: "users",
     href: "/admin/users",
     icon: Users,
   },
   {
-    title: "Settings",
+    key: "settings",
     href: "/admin/settings",
     icon: Settings,
   },
 ];
 
 export function AdminSidebar() {
+  const t = useTranslations("nav");
   const pathname = usePathname();
   const [menuItems, setMenuItems] = useState(allMenuItems);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +104,7 @@ export function AdminSidebar() {
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/admin/dashboard" className="flex items-center space-x-2">
           <ShoppingBag className="h-6 w-6" />
-          <span className="text-lg font-bold">Admin</span>
+          <span className="text-lg font-bold">{t("admin")}</span>
         </Link>
       </div>
       <nav className="flex-1 space-y-1 p-4">
@@ -114,7 +116,7 @@ export function AdminSidebar() {
           menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
-            
+
             return (
               <Link
                 key={item.href}
@@ -127,7 +129,7 @@ export function AdminSidebar() {
                 )}
               >
                 <Icon className="h-5 w-5" />
-                <span>{item.title}</span>
+                <span>{t(item.key as any)}</span>
               </Link>
             );
           })
