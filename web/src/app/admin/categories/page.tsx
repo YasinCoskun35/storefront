@@ -1,17 +1,43 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { catalogApi } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { catalogApi, Category } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function AdminCategoriesPage() {
+  const queryClient = useQueryClient();
+
   const { data: categories, isLoading } = useQuery({
-    queryKey: ["admin-categories"],
-    queryFn: () => catalogApi.getCategories(),
+    queryKey: ["admin-categories", "all"],
+    queryFn: () => catalogApi.getCategories({ all: true }),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: catalogApi.deleteCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-categories", "all"] });
+      toast.success("Category deleted successfully");
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Failed to delete category";
+      toast.error(message);
+    },
+  });
+
+  const handleDelete = (category: Category) => {
+    if (category.productCount > 0) {
+      toast.error(`Cannot delete category "${category.name}" because it has ${category.productCount} products. Please move or delete the products first.`);
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to delete "${category.name}"?`)) {
+      deleteMutation.mutate(category.id);
+    }
+  };
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -63,10 +89,17 @@ export default function AdminCategoriesPage() {
                 </td>
                 <td className="px-4 py-3 text-sm">
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Pencil className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/admin/categories/${category.id}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDelete(category)}
+                      disabled={deleteMutation.isPending}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>

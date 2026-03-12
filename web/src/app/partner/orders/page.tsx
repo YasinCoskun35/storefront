@@ -3,16 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { partnerOrdersApi, OrderStatus } from "@/lib/api/orders";
+import { partnerOrdersApi, OrderSummary } from "@/lib/api/orders";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Package, Search, ChevronRight, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export default function PartnerOrdersPage() {
   const router = useRouter();
+  const t = useTranslations("orders");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -26,9 +28,8 @@ export default function PartnerOrdersPage() {
       }),
   });
 
-  const orders = ordersResponse?.items || [];
+  const orders: OrderSummary[] = ordersResponse?.items || [];
 
-  // Filter orders by search term
   const filteredOrders = orders.filter((order) =>
     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -39,17 +40,24 @@ export default function PartnerOrdersPage() {
         <div className="flex items-center gap-3">
           <Package className="w-8 h-8 text-blue-600" />
           <div>
-            <h1 className="text-3xl font-bold">My Orders</h1>
+            <h1 className="text-3xl font-bold">{t("title")}</h1>
             <p className="text-gray-600 mt-1">
-              Track and manage your order requests
+              {t("titleDesc")}
             </p>
           </div>
         </div>
 
-        <Button onClick={() => router.push("/partner/cart")}>
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          View Cart
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/products">
+            <Button variant="outline">
+              Browse Products
+            </Button>
+          </Link>
+          <Button onClick={() => router.push("/partner/cart")}>
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            View Cart
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -58,7 +66,7 @@ export default function PartnerOrdersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             type="search"
-            placeholder="Search by order number..."
+            placeholder={t("searchPlaceholder")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -70,7 +78,7 @@ export default function PartnerOrdersPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2 border rounded-md bg-white"
         >
-          <option value="">All Statuses</option>
+          <option value="">{t("allStatuses")}</option>
           <option value="Pending">Pending</option>
           <option value="QuoteSent">Quote Sent</option>
           <option value="Confirmed">Confirmed</option>
@@ -83,22 +91,22 @@ export default function PartnerOrdersPage() {
       {/* Orders List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       ) : filteredOrders.length === 0 ? (
         <Card className="p-12 text-center">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-medium text-gray-900 mb-2">
-            {searchTerm || statusFilter ? "No orders found" : "No orders yet"}
+            {searchTerm || statusFilter ? t("noOrders") : t("noOrdersYet")}
           </h2>
           <p className="text-gray-600 mb-6">
             {searchTerm || statusFilter
-              ? "Try adjusting your search or filters"
-              : "Create your first order to get started"}
+              ? t("tryAdjusting")
+              : t("startBrowsing")}
           </p>
           {!searchTerm && !statusFilter && (
             <Button onClick={() => router.push("/products")}>
-              Browse Products
+              {t("browseProducts")}
             </Button>
           )}
         </Card>

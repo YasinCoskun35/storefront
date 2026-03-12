@@ -1,0 +1,1186 @@
+{
+  "info": {
+    "name": "Storefront API",
+    "description": "Complete API collection for Storefront — B2B/B2C modular monolith platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "adminToken", "value": "" },
+    { "key": "partnerToken", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "partnerId", "value": "" },
+    { "key": "variantGroupId", "value": "" },
+    { "key": "variantOptionId", "value": "" },
+    { "key": "cartItemId", "value": "" },
+    { "key": "guestId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{adminToken}}" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": { "type": "text/javascript", "exec": [""] }
+    }
+  ],
+  "item": [
+    {
+      "name": "Config",
+      "item": [
+        {
+          "name": "Get App Mode",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/config/mode",
+            "auth": { "type": "noauth" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Identity — Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.test('Has accessToken', () => pm.expect(json).to.have.property('accessToken'));",
+                  "if (json.accessToken) {",
+                  "    pm.collectionVariables.set('adminToken', json.accessToken);",
+                  "    console.log('Admin token saved');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/identity/auth/login",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@storefront.com\",\n  \"password\": \"AdminPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/identity/auth/refresh",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"your-refresh-token\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Partner Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.test('Has accessToken', () => pm.expect(json).to.have.property('accessToken'));",
+                  "if (json.accessToken) {",
+                  "    pm.collectionVariables.set('partnerToken', json.accessToken);",
+                  "    console.log('Partner token saved');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/identity/partners/auth/login",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"partner@example.com\",\n  \"password\": \"PartnerPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Partner Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/identity/partners/profile",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Identity — Admin Partners",
+      "item": [
+        {
+          "name": "Get All Partners",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/identity/admin/partners",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Create Partner Company",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('partnerId', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/identity/admin/partners",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Acme Furniture\",\n  \"taxId\": \"1234567890\",\n  \"email\": \"info@acme.com\",\n  \"phone\": \"+905551234567\",\n  \"address\": \"123 Business St\",\n  \"city\": \"Istanbul\",\n  \"state\": \"Marmara\",\n  \"postalCode\": \"34000\",\n  \"country\": \"Turkey\",\n  \"industry\": \"Furniture\",\n  \"adminUser\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"admin@acme.com\",\n    \"password\": \"PartnerPassword123!\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Partner Details",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/identity/admin/partners/{{partnerId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Approve Partner",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/identity/admin/partners/{{partnerId}}/approve",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Suspend Partner",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/identity/admin/partners/{{partnerId}}/suspend",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Add Partner User",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/identity/admin/partners/{{partnerId}}/users",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@acme.com\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"password\": \"UserPassword123!\",\n  \"jobTitle\": \"Buyer\",\n  \"phoneNumber\": \"+905559876543\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Partner User",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/identity/admin/partners/users/{{partnerUserId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"jobTitle\": \"Senior Buyer\",\n  \"phoneNumber\": \"+905559876543\",\n  \"isActive\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Reset Partner User Password",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/identity/admin/partners/users/{{partnerUserId}}/reset-password",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"NewPassword123!\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Identity — Admin Users",
+      "item": [
+        {
+          "name": "Get Admin Users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/identity/admin/users",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog — Products",
+      "item": [
+        {
+          "name": "Search Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/catalog/products?pageNumber=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "catalog", "products"],
+              "query": [
+                { "key": "searchTerm", "value": "", "disabled": true },
+                { "key": "categoryId", "value": "", "disabled": true },
+                { "key": "brandId", "value": "", "disabled": true },
+                { "key": "minPrice", "value": "", "disabled": true },
+                { "key": "maxPrice", "value": "", "disabled": true },
+                { "key": "pageNumber", "value": "1" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Get Product By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/catalog/products/{{productId}}",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('productId', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/catalog/products",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Modern 3-Seater Sofa\",\n  \"sku\": \"SOFA-3S-001\",\n  \"description\": \"Comfortable modern sofa with premium upholstery\",\n  \"shortDescription\": \"3-seater modern sofa\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"isActive\": true,\n  \"isFeatured\": true,\n  \"productType\": \"Simple\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/catalog/products/{{productId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Upload Product Image",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/catalog/products/{{productId}}/images?isPrimary=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "catalog", "products", "{{productId}}", "images"],
+              "query": [{ "key": "isPrimary", "value": "true" }]
+            },
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Bundle Details",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/catalog/products/{{productId}}/bundle",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Add Component to Bundle",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/catalog/products/{{productId}}/components",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"componentProductId\": \"component-product-id\",\n  \"quantity\": 1,\n  \"isOptional\": false,\n  \"displayOrder\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Component from Bundle",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/catalog/products/{{productId}}/components/{{componentId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog — Categories",
+      "item": [
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/catalog/categories",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Create Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('categoryId', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/catalog/categories",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sofas\",\n  \"description\": \"All types of sofas and couches\",\n  \"displayOrder\": 1,\n  \"isActive\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/catalog/categories/{{categoryId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sofas & Couches\",\n  \"description\": \"All types of sofas, couches, and loveseats\",\n  \"displayOrder\": 1,\n  \"isActive\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/catalog/categories/{{categoryId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog — Variant Groups (Admin)",
+      "item": [
+        {
+          "name": "Get All Variant Groups",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/variant-groups",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Get Variant Group By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/variant-groups/{{variantGroupId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Create Variant Group",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('variantGroupId', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/admin/variant-groups",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Upholstery Color\",\n  \"code\": \"upholstery-color\",\n  \"description\": \"Available fabric colors for upholstery\",\n  \"displayType\": \"Swatch\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Variant Group",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/admin/variant-groups/{{variantGroupId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Upholstery Color\",\n  \"code\": \"upholstery-color\",\n  \"description\": \"Updated description\",\n  \"displayType\": \"Swatch\",\n  \"isActive\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Variant Group",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/admin/variant-groups/{{variantGroupId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Add Variant Option",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('variantOptionId', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/admin/variant-groups/{{variantGroupId}}/options",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Navy Blue\",\n  \"code\": \"navy-blue\",\n  \"hexColor\": \"#1B3A5C\",\n  \"isAvailable\": true,\n  \"priceAdjustment\": 50.00,\n  \"displayOrder\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Variant Option",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/admin/variant-groups/{{variantGroupId}}/options/{{variantOptionId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Navy Blue\",\n  \"code\": \"navy-blue\",\n  \"hexColor\": \"#1B3A5C\",\n  \"isAvailable\": true,\n  \"priceAdjustment\": 75.00,\n  \"displayOrder\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Variant Option",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/admin/variant-groups/{{variantGroupId}}/options/{{variantOptionId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Get Product Variant Groups",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/variant-groups/product/{{productId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Assign Variant Group to Product",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/admin/variant-groups/product/{{productId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"variantGroupId\": \"{{variantGroupId}}\",\n  \"isRequired\": true,\n  \"allowMultiple\": false,\n  \"displayOrder\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Variant Group from Product",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/admin/variant-groups/product/{{productId}}/{{variantGroupId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog — Variant Groups (Public)",
+      "item": [
+        {
+          "name": "Get Product Variant Groups (Public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/products/{{productId}}/variant-groups",
+            "auth": { "type": "noauth" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content — Blog",
+      "item": [
+        {
+          "name": "Get Published Blog Posts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/content/blog?pageNumber=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "content", "blog"],
+              "query": [
+                { "key": "pageNumber", "value": "1" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "category", "value": "", "disabled": true },
+                { "key": "tag", "value": "", "disabled": true }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Get All Blog Posts (Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/content/blog/admin/all",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Get Blog Post by Slug",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/content/blog/my-blog-post",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Create Blog Post",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/content/blog",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Choosing the Right Sofa\",\n  \"slug\": \"choosing-the-right-sofa\",\n  \"summary\": \"A guide to picking the perfect sofa\",\n  \"body\": \"<p>Content here...</p>\",\n  \"author\": \"Admin\",\n  \"category\": \"Guides\",\n  \"isPublished\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Blog Post",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/content/blog/{{blogPostId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Choosing the Right Sofa - Updated\",\n  \"slug\": \"choosing-the-right-sofa\",\n  \"summary\": \"Updated guide\",\n  \"body\": \"<p>Updated content...</p>\",\n  \"author\": \"Admin\",\n  \"category\": \"Guides\",\n  \"isPublished\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Blog Post",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/content/blog/{{blogPostId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content — Pages & Settings",
+      "item": [
+        {
+          "name": "Get Home Sliders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/content/home-sliders",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Get Page by Slug",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/content/pages/about",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Get Sitemap",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/content/pages/sitemap",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Get All Settings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/content/settings",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Update Setting",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/content/settings/Features.Pricing.Enabled",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"true\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Partner Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.items && json.items.length > 0) {",
+                  "  pm.collectionVariables.set('cartItemId', json.items[0].id);",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has items array', () => pm.expect(json).to.have.property('items'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/partner/cart",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        },
+        {
+          "name": "Add to Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.cartId) { console.log('Cart ID:', json.cartId); }",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/partner/cart/items",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"productName\": \"Modern 3-Seater Sofa\",\n  \"productSKU\": \"SOFA-3S-001\",\n  \"quantity\": 2,\n  \"selectedVariants\": null,\n  \"customizationNotes\": \"Please add extra cushions\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Cart Item Quantity",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/partner/cart/items/{{cartItemId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove from Cart",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/partner/cart/items/{{cartItemId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — B2C Cart (Guest)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('guestId')) {",
+              "  var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random()*16|0, v = c=='x' ? r : (r&0x3|0x8); return v.toString(16); });",
+              "  pm.collectionVariables.set('guestId', uuid);",
+              "  console.log('Generated guestId:', uuid);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get B2C Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.items && json.items.length > 0) { pm.collectionVariables.set('cartItemId', json.items[0].id); }",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/cart",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "X-Guest-Id", "value": "{{guestId}}" }]
+          }
+        },
+        {
+          "name": "Add to B2C Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.test('Has cartId', () => pm.expect(json).to.have.property('cartId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/cart/items",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Guest-Id", "value": "{{guestId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"productName\": \"Modern 3-Seater Sofa\",\n  \"productSKU\": \"SOFA-3S-001\",\n  \"quantity\": 1,\n  \"selectedVariants\": null,\n  \"customizationNotes\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Update B2C Cart Item Quantity",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/cart/items/{{cartItemId}}",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Guest-Id", "value": "{{guestId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove from B2C Cart",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/cart/items/{{cartItemId}}",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "X-Guest-Id", "value": "{{guestId}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — B2C Checkout",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('guestId')) {",
+              "  var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random()*16|0, v = c=='x' ? r : (r&0x3|0x8); return v.toString(16); });",
+              "  pm.collectionVariables.set('guestId', uuid);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "B2C Checkout (Create Order)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "if (json.orderId) { pm.collectionVariables.set('orderId', json.orderId); }",
+                  "pm.test('Has orderId', () => pm.expect(json).to.have.property('orderId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/cart/checkout",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Guest-Id", "value": "{{guestId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestEmail\": \"guest@example.com\",\n  \"guestName\": \"Test Guest\",\n  \"guestPhone\": \"+905551234567\",\n  \"deliveryAddress\": \"123 Test Street\",\n  \"deliveryCity\": \"Istanbul\",\n  \"deliveryState\": \"Marmara\",\n  \"deliveryPostalCode\": \"34000\",\n  \"deliveryCountry\": \"Turkey\",\n  \"deliveryNotes\": \"Leave at door\",\n  \"notes\": null\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — B2C Payments",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('guestId')) {",
+              "  var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random()*16|0, v = c=='x' ? r : (r&0x3|0x8); return v.toString(16); });",
+              "  pm.collectionVariables.set('guestId', uuid);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Initialize Payment (iyzico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.test('Has paymentPageUrl', () => pm.expect(json).to.have.property('paymentPageUrl'));",
+                  "if (json.orderId) { pm.collectionVariables.set('orderId', json.orderId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/b2c/payments/initialize",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Guest-Id", "value": "{{guestId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestEmail\": \"guest@example.com\",\n  \"guestName\": \"Test Guest\",\n  \"guestPhone\": \"+905551234567\",\n  \"deliveryAddress\": \"123 Test Street\",\n  \"deliveryCity\": \"Istanbul\",\n  \"deliveryState\": \"Marmara\",\n  \"deliveryPostalCode\": \"34000\",\n  \"deliveryCountry\": \"Turkey\",\n  \"deliveryNotes\": \"Leave at door\",\n  \"notes\": null,\n  \"basketItems\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"productName\": \"Modern 3-Seater Sofa\",\n      \"quantity\": 1,\n      \"unitPrice\": 1500.00,\n      \"totalPrice\": 1500.00\n    }\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Partner Orders",
+      "item": [
+        {
+          "name": "Get Order Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/partner/orders/stats",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        },
+        {
+          "name": "Get Partner Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/partner/orders",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        },
+        {
+          "name": "Get Order Details",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/partner/orders/{{orderId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        },
+        {
+          "name": "Create Order (from cart)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('orderId', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/partner/orders",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deliveryAddress\": \"456 Warehouse Ave\",\n  \"deliveryCity\": \"Istanbul\",\n  \"deliveryState\": \"Marmara\",\n  \"deliveryPostalCode\": \"34000\",\n  \"deliveryCountry\": \"Turkey\",\n  \"deliveryNotes\": \"Please deliver during business hours\",\n  \"requestedDeliveryDate\": \"2026-04-15T00:00:00Z\",\n  \"notes\": \"Urgent order for showroom\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Comment to Order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/partner/orders/{{orderId}}/comments",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Can you provide an update on the delivery timeline?\",\n  \"type\": \"General\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/partner/orders/{{orderId}}/cancel",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer changed their mind\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Partner Saved Addresses",
+      "item": [
+        {
+          "name": "Get Saved Addresses",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/partner/saved-addresses",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        },
+        {
+          "name": "Create Saved Address",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/partner/saved-addresses",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Main Warehouse\",\n  \"address\": \"456 Warehouse Ave\",\n  \"city\": \"Istanbul\",\n  \"state\": \"Marmara\",\n  \"postalCode\": \"34000\",\n  \"country\": \"Turkey\",\n  \"isDefault\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Saved Address",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/partner/saved-addresses/{{savedAddressId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{partnerToken}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Admin",
+      "item": [
+        {
+          "name": "Get Order Stats (Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/orders/stats",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/orders",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Get Order Details (Admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/admin/orders/{{orderId}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newStatus\": \"Confirmed\",\n  \"notes\": \"Order confirmed and being prepared\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Set Order Pricing",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/pricing",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"orderItemId\": \"item-id\",\n      \"unitPrice\": 1500.00,\n      \"discount\": 0\n    }\n  ],\n  \"shippingCost\": 250.00,\n  \"taxAmount\": 450.00,\n  \"discount\": 100.00,\n  \"currency\": \"TRY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Admin Comment",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/comments",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Payment link: https://pay.example.com/inv123\",\n  \"type\": \"PaymentLink\",\n  \"isInternal\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Shipping Info",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/shipping",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"TR123456789\",\n  \"shippingProvider\": \"Aras Kargo\",\n  \"expectedDeliveryDate\": \"2026-04-20T00:00:00Z\",\n  \"shippingNotes\": \"Fragile items, handle with care\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "auth": { "type": "noauth" }
+          }
+        }
+      ]
+    }
+  ]
+}

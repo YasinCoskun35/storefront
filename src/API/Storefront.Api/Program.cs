@@ -7,7 +7,13 @@ using Storefront.Modules.Orders;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Allow string enums in JSON (e.g., "InStock" instead of 1)
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // Add CORS
@@ -15,10 +21,27 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        if (builder.Environment.IsDevelopment())
+        {
+            // In development, allow all origins for easier testing
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
+        else
+        {
+            // In production, use strict origin checking
+            policy.WithOrigins(
+                    "http://localhost:3000", 
+                    "http://localhost:3001",
+                    "https://localhost:3000",
+                    "https://localhost:3001"
+                  )
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
     });
 });
 
@@ -63,7 +86,6 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Register Modules
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddCatalogModule(builder.Configuration);
 builder.Services.AddContentModule(builder.Configuration);
@@ -90,13 +112,34 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
-
-// Enable CORS
+// Enable CORS (MUST be before Authentication/Authorization)
 app.UseCors("AllowFrontend");
 
+// Disable HTTPS redirection in development (causes certificate errors)
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 // Serve static files from uploads directory
-app.UseStaticFiles();
+var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadsPath); // Ensure directory exists
+
+Console.WriteLine($"📁 Configuring static files from: {uploadsPath}");
+Console.WriteLine($"📁 Directory exists: {Directory.Exists(uploadsPath)}");
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads",
+    ServeUnknownFileTypes = true,
+    OnPrepareResponse = ctx =>
+    {
+        Console.WriteLine($"📸 Serving file: {ctx.File.Name}");
+    }
+});
+
+Console.WriteLine("✅ Static files middleware configured");
 
 app.UseAuthentication();
 app.UseAuthorization();

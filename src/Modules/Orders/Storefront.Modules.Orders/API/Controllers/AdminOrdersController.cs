@@ -21,7 +21,17 @@ public class AdminOrdersController : ControllerBase
     }
 
     /// <summary>
-    /// Get all orders (admin view)
+    /// Get order statistics for admin dashboard
+    /// </summary>
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetOrderStatsQuery(), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, new { error = result.Error.Code });
+    }
+
+    /// <summary>
+    /// Get all orders (admin view - no company filter)
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAllOrders(
@@ -30,8 +40,7 @@ public class AdminOrdersController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20)
     {
-        // TODO: Create GetAllOrdersQuery that doesn't filter by companyId
-        var query = new GetPartnerOrdersQuery(partnerCompanyId ?? "", status, pageNumber, pageSize);
+        var query = new GetPartnerOrdersQuery(partnerCompanyId ?? "", status, pageNumber, pageSize, AdminMode: true);
         var result = await _mediator.Send(query);
 
         return result.IsSuccess
@@ -84,6 +93,34 @@ public class AdminOrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Set order pricing (admin only)
+    /// </summary>
+    [HttpPut("{id}/pricing")]
+    public async Task<IActionResult> SetOrderPricing(string id, [FromBody] SetPricingRequest request)
+    {
+        var itemPricing = request.Items.Select(i =>
+            new OrderItemPricingDto(i.OrderItemId, i.UnitPrice, i.Discount)).ToList();
+
+        var command = new SetOrderPricingCommand(
+            id,
+            itemPricing,
+            request.ShippingCost,
+            request.TaxAmount,
+            request.Discount,
+            request.Currency,
+            request.Notes
+        );
+
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Ok(new { message = "Order pricing updated successfully" })
+            : result.Error.Type == "NotFound"
+                ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
+                : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
+
+    /// <summary>
     /// Add comment to order
     /// </summary>
     [HttpPost("{id}/comments")]
@@ -112,6 +149,25 @@ public class AdminOrdersController : ControllerBase
             ? Created($"/api/admin/orders/{id}/comments/{result.Value}", new { commentId = result.Value })
             : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
     }
+
+    /// <summary>
+    /// Update shipping info and tracking for an order
+    /// </summary>
+    [HttpPut("{id}/shipping")]
+    public async Task<IActionResult> UpdateShipping(string id, [FromBody] UpdateShippingRequest request)
+    {
+        var command = new UpdateShippingInfoCommand(
+            id, request.TrackingNumber, request.ShippingProvider,
+            request.ExpectedDeliveryDate, request.ShippingNotes);
+
+        var result = await _mediator.Send(command);
+
+        return result.IsSuccess
+            ? Ok(new { message = "Shipping info updated" })
+            : result.Error.Type == "NotFound"
+                ? NotFound(new { error = result.Error.Code, message = result.Error.Message })
+                : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
 }
 
 public record UpdateStatusRequest(
@@ -119,10 +175,28 @@ public record UpdateStatusRequest(
     string? Notes
 );
 
+public record SetPricingRequest(
+    List<ItemPricingDto> Items,
+    decimal? ShippingCost,
+    decimal? TaxAmount,
+    decimal? Discount,
+    string? Currency,
+    string? Notes
+);
+
+public record ItemPricingDto(string OrderItemId, decimal UnitPrice, decimal? Discount);
+
 public record AddAdminCommentRequest(
     string Content,
     CommentType Type,
     bool IsInternal,
     string? AttachmentUrl,
     string? AttachmentFileName
+);
+
+public record UpdateShippingRequest(
+    string TrackingNumber,
+    string ShippingProvider,
+    DateTime? ExpectedDeliveryDate,
+    string? ShippingNotes
 );

@@ -9,7 +9,8 @@ public sealed record CreateCategoryCommand(
     string? Slug,
     string? ParentId,
     int DisplayOrder = 0,
-    bool IsActive = true
+    bool IsActive = true,
+    bool ShowInNavbar = false
 ) : IRequest<Result<string>>;
 
 

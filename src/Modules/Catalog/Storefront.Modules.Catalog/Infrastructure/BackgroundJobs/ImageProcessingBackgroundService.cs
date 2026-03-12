@@ -33,19 +33,37 @@ public sealed class ImageProcessingBackgroundService : BackgroundService
     {
         _logger.LogInformation("Image Processing Background Service started.");
 
-        await foreach (var message in _channel.Reader.ReadAllAsync(stoppingToken))
+        try
         {
-            try
+            await foreach (var message in _channel.Reader.ReadAllAsync(stoppingToken))
             {
-                await ProcessImageAsync(message, stoppingToken);
+                try
+                {
+                    await ProcessImageAsync(message, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Service is stopping, ignore cancellation during processing
+                    _logger.LogInformation("Image processing cancelled - service is stopping");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Error processing image for Product: {ProductId}, File: {FilePath}",
+                        message.ProductId,
+                        message.OriginalFilePath);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Error processing image for Product: {ProductId}, File: {FilePath}",
-                    message.ProductId,
-                    message.OriginalFilePath);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Service is stopping, this is expected
+            _logger.LogInformation("Image Processing Background Service is stopping.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in Image Processing Background Service");
         }
 
         _logger.LogInformation("Image Processing Background Service stopped.");
@@ -57,6 +75,13 @@ public sealed class ImageProcessingBackgroundService : BackgroundService
             "Processing image for Product: {ProductId}, File: {FilePath}",
             message.ProductId,
             message.OriginalFilePath);
+
+        // Check if cancellation was requested before processing
+        if (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Image processing skipped due to cancellation request");
+            return;
+        }
 
         if (!File.Exists(message.OriginalFilePath))
         {

@@ -7,7 +7,8 @@ public record GetPartnerOrdersQuery(
     string PartnerCompanyId,
     string? Status,
     int PageNumber = 1,
-    int PageSize = 20
+    int PageSize = 20,
+    bool AdminMode = false  // When true, skips company filter to see all orders
 ) : IRequest<Result<PartnerOrdersResponse>>;
 
 public record PartnerOrdersResponse(
@@ -27,5 +28,7 @@ public record OrderSummaryDto(
     string? Currency,
     DateTime CreatedAt,
     DateTime? RequestedDeliveryDate,
-    bool HasUnreadComments
+    bool HasUnreadComments,
+    string? PartnerCompanyId = null,
+    string? PartnerCompanyName = null
 );

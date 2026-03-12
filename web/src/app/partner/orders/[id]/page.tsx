@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { partnerOrdersApi, CommentType } from "@/lib/api/orders";
@@ -10,31 +10,55 @@ import { CartItemCard } from "@/components/orders/cart-item-card";
 import { CommentThread } from "@/components/orders/comment-thread";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, Calendar, Package, Truck } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, MapPin, Calendar, Package, Truck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function PartnerOrderDetailsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const { data: order, isLoading } = useQuery({
-    queryKey: ["partner-order", params.id],
-    queryFn: () => partnerOrdersApi.getOrderDetails(params.id),
+    queryKey: ["partner-order", id],
+    queryFn: () => partnerOrdersApi.getOrderDetails(id),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => partnerOrdersApi.cancelOrder(id, cancelReason),
+    onSuccess: () => {
+      toast.success("Order cancelled");
+      setShowCancelDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["partner-order", id] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to cancel order");
+    },
   });
 
   const addCommentMutation = useMutation({
     mutationFn: ({ content, type }: { content: string; type: CommentType }) =>
-      partnerOrdersApi.addComment(params.id, {
+      partnerOrdersApi.addComment(id, {
         content,
         type,
       }),
     onSuccess: () => {
       toast.success("Comment added successfully");
-      queryClient.invalidateQueries({ queryKey: ["partner-order", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["partner-order", id] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to add comment");
@@ -44,7 +68,7 @@ export default function PartnerOrderDetailsPage({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -87,7 +111,47 @@ export default function PartnerOrderDetailsPage({
             </span>
           </div>
         </div>
+        {(order.status === "Pending" || order.status === "QuoteSent") && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowCancelDialog(true)}
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Cancel Order
+          </Button>
+        )}
       </div>
+
+      {/* Cancel Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Order</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for cancellation. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Reason for cancellation..."
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+              Keep Order
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!cancelReason.trim() || cancelMutation.isPending}
+              onClick={() => cancelMutation.mutate()}
+            >
+              {cancelMutation.isPending ? "Cancelling..." : "Cancel Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Timeline */}
       <Card className="p-6 mb-6">

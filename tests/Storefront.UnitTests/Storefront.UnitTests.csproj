@@ -26,6 +26,8 @@
     <ProjectReference Include="..\..\src\Shared\Storefront.SharedKernel\Storefront.SharedKernel.csproj" />
     <ProjectReference Include="..\..\src\Modules\Catalog\Storefront.Modules.Catalog\Storefront.Modules.Catalog.csproj" />
     <ProjectReference Include="..\..\src\Modules\Content\Storefront.Modules.Content\Storefront.Modules.Content.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Storefront.Modules.Identity\Storefront.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Orders\Storefront.Modules.Orders\Storefront.Modules.Orders.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,7 +5,7 @@ export default function AboutPage() {
         <h1>About Storefront</h1>
         <p>
           Welcome to Storefront, your trusted hardware store for quality tools
-          and equipment. We've been serving professionals and DIY enthusiasts for
+          and equipment. We&apos;ve been serving professionals and DIY enthusiasts for
           years, providing the best selection of hardware products.
         </p>
         <h2>Our Mission</h2>
@@ -23,7 +23,7 @@ export default function AboutPage() {
         <h2>Visit Us</h2>
         <p>
           Browse our online catalog and contact us to purchase your desired
-          products. We're here to help with all your hardware needs.
+          products. We&apos;re here to help with all your hardware needs.
         </p>
       </div>
     </div>

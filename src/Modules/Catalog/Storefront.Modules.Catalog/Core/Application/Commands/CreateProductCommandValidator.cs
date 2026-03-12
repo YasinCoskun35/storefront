@@ -52,8 +52,12 @@ public sealed class CreateProductCommandValidator : AbstractValidator<CreateProd
             });
         });
 
-        RuleFor(x => x.Quantity)
-            .GreaterThanOrEqualTo(0).WithMessage("Quantity cannot be negative.");
+        // Optional: validate quantity if provided
+        When(x => x.Quantity.HasValue, () =>
+        {
+            RuleFor(x => x.Quantity)
+                .GreaterThanOrEqualTo(0).WithMessage("Quantity cannot be negative.");
+        });
 
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category is required.");

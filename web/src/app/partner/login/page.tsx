@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { partnerPublicApi, PartnerLoginData } from '@/lib/api/partners';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Building2, Eye, EyeOff } from 'lucide-react';
 
 export default function PartnerLoginPage() {
+  const t = useTranslations('auth');
   const router = useRouter();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
@@ -27,23 +28,21 @@ export default function PartnerLoginPage() {
   const loginMutation = useMutation({
     mutationFn: (data: PartnerLoginData) => partnerPublicApi.login(data),
     onSuccess: (response) => {
-      // Store tokens
       localStorage.setItem('partner_access_token', response.accessToken);
       localStorage.setItem('partner_refresh_token', response.refreshToken);
       localStorage.setItem('partner_user', JSON.stringify(response.user));
 
       toast({
-        title: 'Welcome back!',
-        description: `Logged in as ${response.user.firstName} ${response.user.lastName}`,
+        title: t('welcomeBack'),
+        description: `${response.user.firstName} ${response.user.lastName} ${t('loggedInAs')}`,
       });
 
-      // Redirect to partner dashboard
       router.push('/partner/dashboard');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Invalid email or password';
+      const message = error.response?.data?.message || t('invalidCredentials');
       toast({
-        title: 'Login Failed',
+        title: t('loginFailed'),
         description: message,
         variant: 'destructive',
       });
@@ -57,35 +56,34 @@ export default function PartnerLoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-md">
-        {/* Logo/Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
             <Building2 className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold">Partner Portal</h1>
-          <p className="text-gray-600 mt-2">Sign in to your account</p>
+          <h1 className="text-3xl font-bold">{t('partnerPortal')}</h1>
+          <p className="text-gray-600 mt-2">{t('signIn')}</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Welcome Back</CardTitle>
-            <CardDescription>Enter your credentials to access your partner account</CardDescription>
+            <CardTitle>{t('partnerLoginTitle')}</CardTitle>
+            <CardDescription>{t('partnerLoginDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t('email')}</Label>
                 <Input
                   id="email"
                   type="email"
                   {...register('email', {
-                    required: 'Email is required',
+                    required: t('emailRequired'),
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
+                      message: t('invalidEmail'),
                     },
                   })}
-                  placeholder="john@company.com"
+                  placeholder={t('emailPlaceholder')}
                   autoComplete="email"
                 />
                 {errors.email && (
@@ -94,13 +92,13 @@ export default function PartnerLoginPage() {
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('password')}</Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     {...register('password', {
-                      required: 'Password is required',
+                      required: t('passwordRequired'),
                     })}
                     placeholder="••••••••"
                     autoComplete="current-password"
@@ -121,30 +119,29 @@ export default function PartnerLoginPage() {
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center">
                   <input type="checkbox" className="mr-2" />
-                  <span>Remember me</span>
+                  <span>{t('rememberMe')}</span>
                 </label>
                 <a href="/partner/forgot-password" className="text-blue-600 hover:underline">
-                  Forgot password?
+                  {t('forgotPassword')}
                 </a>
               </div>
 
               <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-                {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
+                {loginMutation.isPending ? t('signingIn') : t('signIn')}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Help */}
         <div className="text-center mt-4">
           <p className="text-sm text-gray-600">
-            Need help?{' '}
+            {t('needHelp')}{' '}
             <a href="mailto:support@storefront.com" className="text-blue-600 hover:underline">
-              Contact Support
+              {t('contactSupport')}
             </a>
           </p>
           <p className="text-xs text-gray-500 mt-2">
-            New partner accounts are created by our admin team
+            {t('partnerAccountInfo')}
           </p>
         </div>
       </div>

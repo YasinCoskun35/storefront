@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { catalogApi, CreateCategoryDto, Category } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
@@ -20,8 +20,8 @@ interface CategoryFormProps {
 
 export function CategoryForm({ categoryId, initialData }: CategoryFormProps) {
   const router = useRouter();
-  const { toast } = useToast();
-  
+  const queryClient = useQueryClient();
+
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -29,11 +29,12 @@ export function CategoryForm({ categoryId, initialData }: CategoryFormProps) {
   const [parentId, setParentId] = useState(initialData?.parentId || "");
   const [displayOrder, setDisplayOrder] = useState(initialData?.displayOrder?.toString() || "0");
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
+  const [showInNavbar, setShowInNavbar] = useState(initialData?.showInNavbar ?? false);
 
-  // Fetch categories for parent dropdown
+  // Fetch categories for parent dropdown (all categories)
   const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => catalogApi.getCategories(),
+    queryKey: ["categories", "all"],
+    queryFn: () => catalogApi.getCategories({ all: true }),
   });
 
   // Auto-generate slug from name
@@ -54,35 +55,36 @@ export function CategoryForm({ categoryId, initialData }: CategoryFormProps) {
     }
   };
 
-  // Create category mutation
   const createCategoryMutation = useMutation({
     mutationFn: (data: CreateCategoryDto) => catalogApi.createCategory(data),
     onSuccess: () => {
-      toast({
-        title: "Category created",
-        description: "The category has been created successfully.",
-      });
+      toast.success("Category created successfully");
       router.push("/admin/categories");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to create category",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Failed to create category");
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: (data: CreateCategoryDto) => catalogApi.updateCategory(categoryId!, data),
+    onSuccess: () => {
+      toast.success("Category updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories-tree"] });
+      router.push("/admin/categories");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update category");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     if (!name) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a category name",
-        variant: "destructive",
-      });
+      toast.error("Please enter a category name");
       return;
     }
 
@@ -93,12 +95,17 @@ export function CategoryForm({ categoryId, initialData }: CategoryFormProps) {
       parentId: parentId || undefined,
       displayOrder: parseInt(displayOrder) || 0,
       isActive,
+      showInNavbar,
     };
 
-    createCategoryMutation.mutate(categoryData);
+    if (categoryId) {
+      updateCategoryMutation.mutate(categoryData);
+    } else {
+      createCategoryMutation.mutate(categoryData);
+    }
   };
 
-  const isLoading = createCategoryMutation.isPending;
+  const isLoading = createCategoryMutation.isPending || updateCategoryMutation.isPending;
 
   // Filter out current category and its descendants from parent options
   const availableParentCategories = categories?.filter(
@@ -164,12 +171,17 @@ export function CategoryForm({ categoryId, initialData }: CategoryFormProps) {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="parent">Parent Category</Label>
-            <Select value={parentId} onValueChange={setParentId}>
+            <Select
+              value={parentId || "none"} // Fallback to "none" if parentId is null/empty
+              onValueChange={(value) => setParentId(value === "none" ? "" : value)}
+            >
               <SelectTrigger id="parent">
                 <SelectValue placeholder="None (Top Level)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None (Top Level)</SelectItem>
+                {/* Use "none" as a valid string value */}
+                <SelectItem value="none">None (Top Level)</SelectItem>
+
                 {availableParentCategories?.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.name}
@@ -196,17 +208,31 @@ export function CategoryForm({ categoryId, initialData }: CategoryFormProps) {
             </p>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="isActive"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            <Label htmlFor="isActive" className="cursor-pointer">
-              Active (visible to customers)
-            </Label>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="isActive" className="cursor-pointer">
+                Active (visible to customers)
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="showInNavbar"
+                checked={showInNavbar}
+                onChange={(e) => setShowInNavbar(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="showInNavbar" className="cursor-pointer">
+                Show in navbar (main category navigation)
+              </Label>
+            </div>
           </div>
         </CardContent>
       </Card>

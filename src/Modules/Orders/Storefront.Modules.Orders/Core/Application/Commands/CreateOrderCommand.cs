@@ -6,6 +6,7 @@ namespace Storefront.Modules.Orders.Core.Application.Commands;
 public record CreateOrderCommand(
     string PartnerUserId,
     string PartnerCompanyId,
+    string PartnerCompanyName,
     string DeliveryAddress,
     string DeliveryCity,
     string DeliveryState,

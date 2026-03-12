@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -382,30 +382,32 @@ export default function DesignSystemPage() {
         </h2>
         
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <ProductCard
-            id="1"
-            name="DeWalt 20V MAX Cordless Drill Driver Kit"
-            price={199.99}
-            image="/api/placeholder/400/400"
-            stockStatus="InStock"
-            category="Power Tools"
-          />
-          <ProductCard
-            id="2"
-            name="Milwaukee 18V Lithium-Ion Hammer Drill"
-            price={149.99}
-            image="/api/placeholder/400/400"
-            stockStatus="LowStock"
-            category="Power Tools"
-          />
-          <ProductCard
-            id="3"
-            name="Bosch 12V Max Brushless Impact Driver"
-            price={129.99}
-            image="/api/placeholder/400/400"
-            stockStatus="OutOfStock"
-            category="Power Tools"
-          />
+          {[
+            { id: "1", name: "DeWalt 20V MAX Cordless Drill Driver Kit", stockStatus: "InStock" },
+            { id: "2", name: "Milwaukee 18V Lithium-Ion Hammer Drill", stockStatus: "LowStock" },
+            { id: "3", name: "Bosch 12V Max Brushless Impact Driver", stockStatus: "OutOfStock" },
+          ].map((mock) => (
+            <ProductCard
+              key={mock.id}
+              product={{
+                id: mock.id,
+                name: mock.name,
+                sku: mock.id,
+                shortDescription: undefined,
+                primaryImageUrl: undefined,
+                price: 0,
+                compareAtPrice: undefined,
+                stockStatus: mock.stockStatus as any,
+                quantity: 0,
+                categoryId: "",
+                categoryName: "Power Tools",
+                brandName: undefined,
+                isFeatured: false,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+              }}
+            />
+          ))}
         </div>
       </section>
 

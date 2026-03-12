@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { catalogApi, Product } from "@/lib/api";
 import { DataTable } from "@/components/admin/data-table";
 import { Button } from "@/components/ui/button";
@@ -9,25 +10,47 @@ import { formatPrice, getImageUrl } from "@/lib/utils";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function AdminProductsPage() {
+  const t = useTranslations('products');
   const [page, setPage] = useState(1);
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products", page],
     queryFn: () => catalogApi.searchProducts({ pageNumber: page, pageSize: 10 }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: catalogApi.deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      toast.success("Product deleted successfully");
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Failed to delete product";
+      toast.error(message);
+    },
+  });
+
+  const handleDelete = (product: Product) => {
+    if (window.confirm(`Are you sure you want to delete "${product.name}"?`)) {
+      deleteMutation.mutate(product.id);
+    }
+  };
+
   const columns = [
     {
       header: "Image",
       accessor: (row: Product) => (
-        <div className="relative h-12 w-12 rounded overflow-hidden">
+        <div className="relative h-12 w-12 rounded overflow-hidden bg-gray-100">
           <Image
             src={getImageUrl(row.primaryImageUrl)}
-            alt={row.name}
+            alt={row.name || "Product"}
             fill
             className="object-cover"
+            unoptimized
           />
         </div>
       ),
@@ -70,7 +93,12 @@ export default function AdminProductsPage() {
               <Pencil className="h-4 w-4" />
             </Button>
           </Link>
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => handleDelete(row)}
+            disabled={deleteMutation.isPending}
+          >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -86,15 +114,15 @@ export default function AdminProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Products</h1>
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground">
-            Manage your product catalog
+            {t('titleDesc')}
           </p>
         </div>
         <Link href="/admin/products/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Add Product
+            {t('addProduct')}
           </Button>
         </Link>
       </div>

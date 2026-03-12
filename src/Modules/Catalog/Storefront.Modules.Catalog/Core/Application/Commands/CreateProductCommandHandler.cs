@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Storefront.Modules.Catalog.Core.Application.Utilities;
 using Storefront.Modules.Catalog.Core.Domain.Entities;
 using Storefront.Modules.Catalog.Core.Domain.Enums;
 using Storefront.Modules.Catalog.Infrastructure.Persistence;
@@ -67,7 +68,7 @@ public sealed class CreateProductCommandHandler : IRequestHandler<CreateProductC
         }
 
         // Generate slug from name
-        var slug = GenerateSlug(request.Name);
+        var slug = SlugGenerator.Generate(request.Name);
 
         var product = new Product
         {
@@ -81,8 +82,8 @@ public sealed class CreateProductCommandHandler : IRequestHandler<CreateProductC
             CompareAtPrice = request.CompareAtPrice,
             BundlePrice = request.BundlePrice,
             CanBeSoldSeparately = request.CanBeSoldSeparately,
-            StockStatus = request.StockStatus,
-            Quantity = request.Quantity,
+            StockStatus = request.StockStatus ?? StockStatus.InStock,  // Default to InStock
+            Quantity = request.Quantity ?? 0,  // Default to 0
             CategoryId = request.CategoryId,
             BrandId = request.BrandId,
             Weight = request.Weight,
@@ -123,15 +124,6 @@ public sealed class CreateProductCommandHandler : IRequestHandler<CreateProductC
         await _context.SaveChangesAsync(cancellationToken);
 
         return Result<string>.Success(product.Id);
-    }
-
-    private static string GenerateSlug(string name)
-    {
-        return name.ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("&", "and")
-            .Replace("'", "")
-            .Replace("\"", "");
     }
 }
 

@@ -9,18 +9,19 @@ namespace Storefront.Modules.Orders.Core.Application.Commands;
 public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<string>>
 {
     private readonly OrdersDbContext _context;
+    private readonly IProductPriceResolver _priceResolver;
 
-    public AddToCartCommandHandler(OrdersDbContext context)
+    public AddToCartCommandHandler(OrdersDbContext context, IProductPriceResolver priceResolver)
     {
         _context = context;
+        _priceResolver = priceResolver;
     }
 
     public async Task<Result<string>> Handle(AddToCartCommand request, CancellationToken cancellationToken)
     {
-        // Get or create cart for this partner user
         var cart = await _context.Carts
             .Include(c => c.Items)
-            .FirstOrDefaultAsync(c => c.PartnerUserId == request.PartnerUserId && c.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(c => c.PartnerUserId == request.PartnerUserId, cancellationToken);
 
         if (cart is null)
         {
@@ -33,21 +34,27 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
             };
             _context.Carts.Add(cart);
         }
+        else if (!cart.IsActive)
+        {
+            cart.IsActive = true;
+            cart.UpdatedAt = DateTime.UtcNow;
+        }
 
-        // Check if same product + color already in cart
+        // Match on product + selected variants combination
         var existingItem = cart.Items.FirstOrDefault(i =>
             i.ProductId == request.ProductId &&
-            i.ColorOptionId == request.ColorOptionId);
+            i.SelectedVariants == request.SelectedVariants);
 
         if (existingItem is not null)
         {
-            // Update quantity instead of adding duplicate
             existingItem.Quantity += request.Quantity;
             existingItem.UpdatedAt = DateTime.UtcNow;
         }
         else
         {
-            // Add new item
+            // Capture catalog price at add-to-cart time
+            var unitPrice = await _priceResolver.GetPriceAsync(request.ProductId, cancellationToken);
+
             var cartItem = new CartItem
             {
                 CartId = cart.Id,
@@ -56,11 +63,8 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
                 ProductSKU = request.ProductSKU,
                 ProductImageUrl = request.ProductImageUrl,
                 Quantity = request.Quantity,
-                ColorChartId = request.ColorChartId,
-                ColorChartName = request.ColorChartName,
-                ColorOptionId = request.ColorOptionId,
-                ColorOptionName = request.ColorOptionName,
-                ColorOptionCode = request.ColorOptionCode,
+                UnitPrice = unitPrice,
+                SelectedVariants = request.SelectedVariants,
                 CustomizationNotes = request.CustomizationNotes,
                 CreatedAt = DateTime.UtcNow
             };

@@ -19,6 +19,7 @@ public class GetPartnerCompanyDetailsQueryHandler : IRequestHandler<GetPartnerCo
         var company = await _context.PartnerCompanies
             .Include(pc => pc.Users)
             .Include(pc => pc.Contacts)
+            .Include(pc => pc.AccountTransactions)
             .FirstOrDefaultAsync(pc => pc.Id == request.CompanyId, cancellationToken);
 
         if (company is null)
@@ -55,7 +56,8 @@ public class GetPartnerCompanyDetailsQueryHandler : IRequestHandler<GetPartnerCo
                 u.Role.ToString(),
                 u.IsActive,
                 u.CreatedAt,
-                u.LastLoginAt
+                u.LastLoginAt,
+                u.GetScopesList()
             )).ToList(),
             company.Contacts.Where(c => c.IsActive).Select(c => new PartnerContactDto(
                 c.Id,
@@ -64,7 +66,22 @@ public class GetPartnerCompanyDetailsQueryHandler : IRequestHandler<GetPartnerCo
                 c.Email,
                 c.Phone,
                 c.IsPrimary
-            )).ToList()
+            )).ToList(),
+            company.DiscountRate,
+            company.CurrentBalance,
+            company.AccountTransactions
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(50)
+                .Select(t => new PartnerAccountTransactionDto(
+                    t.Id,
+                    t.Type.ToString(),
+                    t.Amount,
+                    t.PaymentMethod.HasValue ? t.PaymentMethod.Value.ToString() : null,
+                    t.OrderReference,
+                    t.Notes,
+                    t.CreatedBy,
+                    t.CreatedAt
+                )).ToList()
         );
 
         return Result<PartnerCompanyDetailsDto>.Success(dto);

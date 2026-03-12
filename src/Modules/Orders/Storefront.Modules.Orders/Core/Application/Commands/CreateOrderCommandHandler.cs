@@ -10,15 +10,16 @@ namespace Storefront.Modules.Orders.Core.Application.Commands;
 public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Result<string>>
 {
     private readonly OrdersDbContext _context;
+    private readonly IPartnerDiscountResolver _discountResolver;
 
-    public CreateOrderCommandHandler(OrdersDbContext context)
+    public CreateOrderCommandHandler(OrdersDbContext context, IPartnerDiscountResolver discountResolver)
     {
         _context = context;
+        _discountResolver = discountResolver;
     }
 
     public async Task<Result<string>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
-        // Get partner's cart
         var cart = await _context.Carts
             .Include(c => c.Items)
             .FirstOrDefaultAsync(c => c.PartnerUserId == request.PartnerUserId && c.IsActive, cancellationToken);
@@ -28,20 +29,17 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
             return Error.Validation("Order.EmptyCart", "Cannot create order from empty cart");
         }
 
-        // Generate order number
+        var discountRate = await _discountResolver.GetDiscountRateAsync(request.PartnerCompanyId, cancellationToken);
+
         var orderCount = await _context.Orders.CountAsync(cancellationToken);
         var orderNumber = $"ORD-{DateTime.UtcNow:yyyy}-{(orderCount + 1):D4}";
 
-        // Get partner company name (would normally query Identity module, but denormalizing for simplicity)
-        var partnerCompanyName = "Partner Company"; // TODO: Get from Identity module
-
-        // Create order
         var order = new Order
         {
             OrderNumber = orderNumber,
             PartnerCompanyId = request.PartnerCompanyId,
             PartnerUserId = request.PartnerUserId,
-            PartnerCompanyName = partnerCompanyName,
+            PartnerCompanyName = request.PartnerCompanyName,
             Status = OrderStatus.Pending,
             DeliveryAddress = request.DeliveryAddress,
             DeliveryCity = request.DeliveryCity,
@@ -49,15 +47,37 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
             DeliveryPostalCode = request.DeliveryPostalCode,
             DeliveryCountry = request.DeliveryCountry,
             DeliveryNotes = request.DeliveryNotes,
-            RequestedDeliveryDate = request.RequestedDeliveryDate,
+            RequestedDeliveryDate = request.RequestedDeliveryDate.HasValue
+                ? DateTime.SpecifyKind(request.RequestedDeliveryDate.Value, DateTimeKind.Utc)
+                : null,
             Notes = request.Notes,
+            Currency = "TRY",
             CreatedAt = DateTime.UtcNow,
             SubmittedAt = DateTime.UtcNow
         };
 
-        // Convert cart items to order items
+        decimal subTotal = 0;
+        decimal totalDiscount = 0;
+
         foreach (var cartItem in cart.Items)
         {
+            decimal? discountedPrice = null;
+            decimal? itemDiscount = null;
+            decimal? totalPrice = null;
+
+            if (cartItem.UnitPrice.HasValue && cartItem.UnitPrice.Value > 0)
+            {
+                var catalogPrice = cartItem.UnitPrice.Value;
+                discountedPrice = discountRate > 0
+                    ? Math.Round(catalogPrice * (1 - discountRate / 100m), 2)
+                    : catalogPrice;
+                itemDiscount = Math.Round((catalogPrice - discountedPrice.Value) * cartItem.Quantity, 2);
+                totalPrice = Math.Round(discountedPrice.Value * cartItem.Quantity, 2);
+
+                subTotal += discountedPrice.Value * cartItem.Quantity;
+                totalDiscount += itemDiscount.Value;
+            }
+
             var orderItem = new OrderItem
             {
                 OrderId = order.Id,
@@ -66,12 +86,11 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
                 ProductSKU = cartItem.ProductSKU,
                 ProductImageUrl = cartItem.ProductImageUrl,
                 Quantity = cartItem.Quantity,
-                ColorChartId = cartItem.ColorChartId,
-                ColorChartName = cartItem.ColorChartName,
-                ColorOptionId = cartItem.ColorOptionId,
-                ColorOptionName = cartItem.ColorOptionName,
-                ColorOptionCode = cartItem.ColorOptionCode,
+                SelectedVariants = cartItem.SelectedVariants,
                 CustomizationNotes = cartItem.CustomizationNotes,
+                UnitPrice = discountedPrice,
+                Discount = itemDiscount,
+                TotalPrice = totalPrice,
                 DisplayOrder = 0,
                 CreatedAt = DateTime.UtcNow
             };
@@ -79,11 +98,18 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
             order.Items.Add(orderItem);
         }
 
-        // Add system comment
+        if (subTotal > 0)
+        {
+            order.SubTotal = subTotal;
+            order.Discount = totalDiscount;
+            order.TotalAmount = subTotal;
+        }
+
         var systemComment = new OrderComment
         {
             OrderId = order.Id,
-            Content = $"Order created with {cart.Items.Count} item(s)",
+            Content = $"Order created with {cart.Items.Count} item(s)" +
+                      (discountRate > 0 ? $" · {discountRate}% partner discount applied" : string.Empty),
             Type = CommentType.StatusChange,
             AuthorId = request.PartnerUserId,
             AuthorName = "System",
@@ -96,7 +122,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
 
         _context.Orders.Add(order);
 
-        // Clear cart
+        _context.CartItems.RemoveRange(cart.Items);
         cart.IsActive = false;
         cart.UpdatedAt = DateTime.UtcNow;
 

@@ -19,7 +19,10 @@ public class PartnerUser
     
     // Role
     public PartnerRole Role { get; set; } = PartnerRole.User;
-    
+
+    // Scopes (comma-separated list of PartnerScope constants)
+    public string? Scopes { get; set; }
+
     // Status
     public bool IsActive { get; set; } = true;
     public bool EmailConfirmed { get; set; } = false;
@@ -36,4 +39,6 @@ public class PartnerUser
     // Helper Properties
     public string FullName => $"{FirstName} {LastName}";
     public bool IsLockedOut => LockoutEnd.HasValue && LockoutEnd.Value > DateTime.UtcNow;
+    public bool HasScope(string scope) => Scopes?.Split(',').Contains(scope) ?? false;
+    public List<string> GetScopesList() => Scopes?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? [];
 }

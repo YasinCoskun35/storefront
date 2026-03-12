@@ -1,94 +1,186 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { Loader2, Save, Settings2 } from "lucide-react";
+import { settingsApi, AppSetting } from "@/lib/api/settings";
+
+interface SettingEditorProps {
+  setting: AppSetting;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function SettingEditor({ setting, value, onChange }: SettingEditorProps) {
+  switch (setting.dataType) {
+    case "boolean":
+      return (
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>{setting.displayName}</Label>
+            {setting.description && (
+              <p className="text-sm text-muted-foreground">{setting.description}</p>
+            )}
+          </div>
+          <Switch
+            checked={value.toLowerCase() === "true"}
+            onCheckedChange={(checked: boolean) => onChange(checked.toString())}
+          />
+        </div>
+      );
+    case "number":
+      return (
+        <div className="space-y-2">
+          <Label htmlFor={setting.key}>{setting.displayName}</Label>
+          {setting.description && (
+            <p className="text-sm text-muted-foreground">{setting.description}</p>
+          )}
+          <Input
+            id={setting.key}
+            type="number"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </div>
+      );
+    default:
+      return (
+        <div className="space-y-2">
+          <Label htmlFor={setting.key}>{setting.displayName}</Label>
+          {setting.description && (
+            <p className="text-sm text-muted-foreground">{setting.description}</p>
+          )}
+          <Input
+            id={setting.key}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </div>
+      );
+  }
+}
 
 export default function AdminSettingsPage() {
-  const [storeName, setStoreName] = useState("Storefront");
-  const [storeEmail, setStoreEmail] = useState("info@storefront.com");
-  const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
+  const t = useTranslations('settings');
+  const queryClient = useQueryClient();
+  const [modifiedSettings, setModifiedSettings] = useState<Record<string, string>>({});
 
-  const handleSaveSettings = async () => {
-    setIsSaving(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
-      toast({
-        title: "Settings saved",
-        description: "Your store settings have been updated successfully.",
-      });
-    }, 1000);
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["settings"],
+    queryFn: settingsApi.getAll,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      const updates = Object.entries(modifiedSettings).map(([key, value]) =>
+        settingsApi.update(key, value)
+      );
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      setModifiedSettings({});
+      toast.success(t("saved"));
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || t("saveFailed"));
+    },
+  });
+
+  const handleSettingChange = (key: string, value: string) => {
+    setModifiedSettings((prev) => ({ ...prev, [key]: value }));
   };
+
+  const handleSave = () => {
+    if (Object.keys(modifiedSettings).length === 0) {
+      toast.info(t("noChanges"));
+      return;
+    }
+    updateMutation.mutate();
+  };
+
+  const hasChanges = Object.keys(modifiedSettings).length > 0;
+
+  // Group settings by category
+  const groupedSettings = settings?.reduce((acc, setting) => {
+    if (!acc[setting.category]) {
+      acc[setting.category] = [];
+    }
+    acc[setting.category].push(setting);
+    return acc;
+  }, {} as Record<string, AppSetting[]>);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-secondary">Settings</h1>
-        <p className="text-muted-foreground">Manage your store settings</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-secondary flex items-center gap-2">
+            <Settings2 className="h-8 w-8" />
+            {t("title")}
+          </h1>
+          <p className="text-muted-foreground">{t("titleDesc")}</p>
+        </div>
+        {hasChanges && (
+          <Button onClick={handleSave} disabled={updateMutation.isPending} size="lg">
+            {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Save className="mr-2 h-4 w-4" />
+            {t("saveChanges")} ({Object.keys(modifiedSettings).length})
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>General Settings</CardTitle>
-            <CardDescription>
-              Configure your store information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="storeName">Store Name</Label>
-              <Input 
-                id="storeName"
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="storeEmail">Store Email</Label>
-              <Input 
-                id="storeEmail"
-                type="email"
-                value={storeEmail}
-                onChange={(e) => setStoreEmail(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleSaveSettings} disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSaving ? "Saving..." : "Save Changes"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>API Configuration</CardTitle>
-            <CardDescription>
-              API endpoint and authentication settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="apiUrl">API Base URL</Label>
-              <Input 
-                id="apiUrl"
-                defaultValue="http://localhost:8080" 
-                disabled 
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              API configuration is managed through environment variables
-            </p>
-          </CardContent>
-        </Card>
+        {groupedSettings &&
+          Object.entries(groupedSettings).map(([category, categorySettings]) => (
+            <Card key={category}>
+              <CardHeader>
+                <CardTitle>{category}</CardTitle>
+                <CardDescription>
+                  {category === "Features"
+                    ? t("featuresDesc")
+                    : category === "General"
+                    ? t("generalDesc")
+                    : `${category} settings`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {categorySettings.map((setting) => (
+                  <SettingEditor
+                    key={setting.key}
+                    setting={setting}
+                    value={modifiedSettings[setting.key] ?? setting.value}
+                    onChange={(value) => handleSettingChange(setting.key, value)}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          ))}
       </div>
+
+      {hasChanges && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button onClick={handleSave} disabled={updateMutation.isPending} size="lg" className="shadow-lg">
+            {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Save className="mr-2 h-4 w-4" />
+            {t("saveChanges")} ({Object.keys(modifiedSettings).length})
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ using Storefront.SharedKernel;
 
 namespace Storefront.Modules.Orders.Core.Application.Queries;
 
-public record GetOrderDetailsQuery(string OrderId) : IRequest<Result<OrderDetailsDto>>;
+public record GetOrderDetailsQuery(string OrderId, bool IncludeInternalComments = true) : IRequest<Result<OrderDetailsDto>>;
 
 public record OrderDetailsDto(
     string Id,
@@ -42,10 +42,7 @@ public record OrderItemDetailsDto(
     string ProductSKU,
     string? ProductImageUrl,
     int Quantity,
-    string? ColorChartName,
-    string? ColorOptionName,
-    string? ColorOptionCode,
-    string? ColorOptionImageUrl,
+    string? SelectedVariants,
     decimal? UnitPrice,
     decimal? Discount,
     decimal? TotalPrice,

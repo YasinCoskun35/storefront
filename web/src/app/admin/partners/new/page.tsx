@@ -10,11 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Building2, User } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+import { partnerAdminApi, RegisterPartnerData } from '@/lib/api/partners';
+import { toast } from 'sonner';
 
 interface CreatePartnerForm {
   // Company
@@ -27,10 +25,6 @@ interface CreatePartnerForm {
   state: string;
   postalCode: string;
   country: string;
-  industry?: string;
-  website?: string;
-  employeeCount?: number;
-  annualRevenue?: number;
   // Admin User
   adminUser: {
     firstName: string;
@@ -42,7 +36,6 @@ interface CreatePartnerForm {
 
 export default function NewPartnerPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('company');
 
   const {
@@ -53,23 +46,14 @@ export default function NewPartnerPage() {
   } = useForm<CreatePartnerForm>();
 
   const createMutation = useMutation({
-    mutationFn: async (data: CreatePartnerForm) => {
-      const response = await axios.post(`${API_URL}/admin/partners`, data);
-      return response.data;
-    },
+    mutationFn: (data: RegisterPartnerData) => partnerAdminApi.createPartner(data),
     onSuccess: (data) => {
-      toast({
-        title: 'Partner Created',
-        description: 'The partner company has been created successfully.',
-      });
+      toast.success('Partner company created successfully');
       router.push(`/admin/partners/${data.id}`);
     },
     onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to create partner. Please try again.',
-        variant: 'destructive',
-      });
+      const message = error.response?.data?.message || 'Failed to create partner. Please try again.';
+      toast.error(message);
     },
   });
 
@@ -247,47 +231,6 @@ export default function NewPartnerPage() {
                   {errors.country && (
                     <p className="text-sm text-red-600 mt-1">{errors.country.message}</p>
                   )}
-                </div>
-
-                {/* Optional Fields */}
-                <div className="border-t pt-4 mt-4">
-                  <h3 className="font-semibold mb-3">Additional Information (Optional)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="industry">Industry</Label>
-                      <Input id="industry" {...register('industry')} placeholder="Furniture Retail" />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="website">Website</Label>
-                      <Input
-                        id="website"
-                        type="url"
-                        {...register('website')}
-                        placeholder="https://company.com"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="employeeCount">Number of Employees</Label>
-                      <Input
-                        id="employeeCount"
-                        type="number"
-                        {...register('employeeCount', { valueAsNumber: true })}
-                        placeholder="25"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="annualRevenue">Annual Revenue (USD)</Label>
-                      <Input
-                        id="annualRevenue"
-                        type="number"
-                        {...register('annualRevenue', { valueAsNumber: true })}
-                        placeholder="2000000"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 <div className="flex justify-end pt-4">

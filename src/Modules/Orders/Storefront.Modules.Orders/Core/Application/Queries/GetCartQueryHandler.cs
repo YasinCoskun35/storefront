@@ -22,7 +22,6 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, Result<CartDto>
 
         if (cart is null)
         {
-            // Return empty cart
             return Result<CartDto>.Success(new CartDto(
                 Guid.NewGuid().ToString(),
                 0,
@@ -40,11 +39,8 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, Result<CartDto>
                 i.ProductSKU,
                 i.ProductImageUrl,
                 i.Quantity,
-                i.ColorChartId,
-                i.ColorChartName,
-                i.ColorOptionId,
-                i.ColorOptionName,
-                i.ColorOptionCode,
+                i.UnitPrice,
+                i.SelectedVariants,
                 i.CustomizationNotes
             )).ToList()
         );

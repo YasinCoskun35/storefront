@@ -59,16 +59,15 @@ public class GetOrderDetailsQueryHandler : IRequestHandler<GetOrderDetailsQuery,
                 i.ProductSKU,
                 i.ProductImageUrl,
                 i.Quantity,
-                i.ColorChartName,
-                i.ColorOptionName,
-                i.ColorOptionCode,
-                i.ColorOptionImageUrl,
+                i.SelectedVariants,
                 i.UnitPrice,
                 i.Discount,
                 i.TotalPrice,
                 i.CustomizationNotes
             )).ToList(),
-            order.Comments.OrderBy(c => c.CreatedAt).Select(c => new OrderCommentDto(
+            order.Comments
+                .Where(c => request.IncludeInternalComments || !c.IsInternal)
+                .OrderBy(c => c.CreatedAt).Select(c => new OrderCommentDto(
                 c.Id,
                 c.Content,
                 c.Type.ToString(),

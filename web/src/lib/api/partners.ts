@@ -1,7 +1,5 @@
 // API Client for Partner Management
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+import { api } from '../api';
 
 export interface PartnerCompany {
   id: string;
@@ -18,6 +16,17 @@ export interface PartnerCompany {
   approvedAt: string | null;
 }
 
+export interface PartnerAccountTransactionDto {
+  id: string;
+  type: 'OrderDebit' | 'PaymentCredit' | 'ManualAdjustment';
+  amount: number;
+  paymentMethod: 'Cash' | 'Check' | 'PromissoryNote' | 'BankTransfer' | null;
+  orderReference: string | null;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface PartnerCompanyDetails extends PartnerCompany {
   address: string;
   postalCode: string;
@@ -30,6 +39,9 @@ export interface PartnerCompanyDetails extends PartnerCompany {
   approvalNotes: string | null;
   users: PartnerUser[];
   contacts: PartnerContact[];
+  discountRate: number;
+  currentBalance: number;
+  transactions: PartnerAccountTransactionDto[];
 }
 
 export interface PartnerUser {
@@ -41,6 +53,7 @@ export interface PartnerUser {
   isActive: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  scopes: string[];
 }
 
 export interface PartnerContact {
@@ -97,6 +110,7 @@ export interface PartnerLoginResponse {
     firstName: string;
     lastName: string;
     role: string;
+    discountRate: number;
     company: {
       id: string;
       name: string;
@@ -111,8 +125,7 @@ export const partnerAdminApi = {
     searchTerm?: string,
     status?: string,
     pageNumber = 1,
-    pageSize = 20,
-    token?: string
+    pageSize = 20
   ): Promise<PartnerListResponse> => {
     const params = new URLSearchParams();
     if (searchTerm) params.append('searchTerm', searchTerm);
@@ -120,51 +133,96 @@ export const partnerAdminApi = {
     params.append('pageNumber', pageNumber.toString());
     params.append('pageSize', pageSize.toString());
 
-    const response = await axios.get(`${API_URL}/admin/partners?${params}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const response = await api.get(`/api/identity/admin/partners?${params}`);
     return response.data;
   },
 
-  getPartnerDetails: async (id: string, token?: string): Promise<PartnerCompanyDetails> => {
-    const response = await axios.get(`${API_URL}/admin/partners/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+  getPartnerDetails: async (id: string): Promise<PartnerCompanyDetails> => {
+    const response = await api.get(`/api/identity/admin/partners/${id}`);
     return response.data;
   },
 
-  createPartner: async (data: RegisterPartnerData, token?: string): Promise<{ id: string }> => {
-    const response = await axios.post(`${API_URL}/admin/partners`, data, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+  createPartner: async (data: RegisterPartnerData): Promise<{ id: string }> => {
+    const response = await api.post(`/api/identity/admin/partners`, data);
     return response.data;
   },
 
-  approvePartner: async (id: string, approvalNotes: string | null, token?: string): Promise<void> => {
-    await axios.put(
-      `${API_URL}/admin/partners/${id}/approve`,
-      { approvalNotes },
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      }
-    );
+  approvePartner: async (id: string, approvalNotes: string | null): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/${id}/approve`, { approvalNotes });
   },
 
-  suspendPartner: async (id: string, reason: string | null, token?: string): Promise<void> => {
-    await axios.put(
-      `${API_URL}/admin/partners/${id}/suspend`,
-      { reason },
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      }
-    );
+  suspendPartner: async (id: string, reason: string | null): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/${id}/suspend`, { reason });
+  },
+
+  rejectPartner: async (id: string, reason: string | null): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/${id}/reject`, { reason });
+  },
+
+  reactivatePartner: async (id: string): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/${id}/reactivate`);
+  },
+
+  addPartnerUser: async (
+    companyId: string,
+    data: { firstName: string; lastName: string; email: string; password: string; role: string; scopes?: string[] }
+  ): Promise<{ id: string }> => {
+    const response = await api.post(`/api/identity/admin/partners/${companyId}/users`, data);
+    return response.data;
+  },
+
+  updatePartnerUser: async (
+    userId: string,
+    data: { firstName: string; lastName: string; phone?: string; role: string; isActive: boolean; scopes?: string[] }
+  ): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/users/${userId}`, data);
+  },
+
+  resetPartnerUserPassword: async (userId: string, newPassword: string): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/users/${userId}/reset-password`, { newPassword });
+  },
+
+  updatePricing: async (companyId: string, discountRate: number): Promise<void> => {
+    await api.put(`/api/identity/admin/partners/${companyId}/pricing`, { discountRate });
+  },
+
+  recordTransaction: async (
+    companyId: string,
+    data: {
+      type: string;
+      amount: number;
+      paymentMethod?: string;
+      orderReference?: string;
+      notes?: string;
+    }
+  ): Promise<{ id: string }> => {
+    const response = await api.post(`/api/identity/admin/partners/${companyId}/account/transactions`, data);
+    return response.data;
   },
 };
+
+export interface PartnerProfileResponse {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  discountRate: number;
+  company: {
+    id: string;
+    name: string;
+    status: string;
+  };
+}
 
 // Partner Public APIs
 export const partnerPublicApi = {
   login: async (data: PartnerLoginData): Promise<PartnerLoginResponse> => {
-    const response = await axios.post(`${API_URL}/partners/auth/login`, data);
+    const response = await api.post(`/api/identity/partners/auth/login`, data);
+    return response.data;
+  },
+
+  getProfile: async (): Promise<PartnerProfileResponse> => {
+    const response = await api.get(`/api/identity/partners/profile`);
     return response.data;
   },
 };

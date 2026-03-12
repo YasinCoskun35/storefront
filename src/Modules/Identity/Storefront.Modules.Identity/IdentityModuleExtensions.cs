@@ -59,16 +59,25 @@ public static class IdentityModuleExtensions
                 ValidIssuer = configuration["Jwt:Issuer"],
                 ValidAudience = configuration["Jwt:Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-                ClockSkew = TimeSpan.Zero
+                ClockSkew = TimeSpan.Zero,
+                // Map JWT "sub" claim to NameIdentifier so User.FindFirst(ClaimTypes.NameIdentifier) works
+                NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub,
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role
             };
         });
 
         // Register application services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IdentityDataSeeder>();
-        
+
         // Register PasswordHasher for PartnerUser
         services.AddScoped<IPasswordHasher<PartnerUser>, PasswordHasher<PartnerUser>>();
+
+        // Register partner discount resolver (used by Orders module via SharedKernel interface)
+        services.AddScoped<Storefront.SharedKernel.IPartnerDiscountResolver, IdentityPartnerDiscountResolver>();
+
+        // Register partner account service (used by Orders module via SharedKernel interface)
+        services.AddScoped<Storefront.SharedKernel.IPartnerAccountService, IdentityPartnerAccountService>();
 
         // Register MediatR handlers from this assembly
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(LoginUserCommand).Assembly));

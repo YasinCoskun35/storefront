@@ -9,6 +9,7 @@ public sealed record CategoryDto(
     string? ParentId,
     int DisplayOrder,
     bool IsActive,
+    bool ShowInNavbar,
     int ProductCount
 );
 
