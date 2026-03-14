@@ -226,3 +226,25 @@ export const partnerPublicApi = {
     return response.data;
   },
 };
+
+export interface PartnerAccountResponse {
+  currentBalance: number;
+  discountRate: number;
+  transactions: PartnerAccountTransactionDto[];
+}
+
+// Partner Payment APIs
+export const partnerPaymentApi = {
+  getAccount: async (): Promise<PartnerAccountResponse> => {
+    const response = await api.get<PartnerAccountResponse>('/api/identity/partners/account');
+    return response.data;
+  },
+
+  initialize: async (amount: number): Promise<{ token: string; checkoutFormContent: string }> => {
+    const response = await api.post<{ token: string; checkoutFormContent: string }>(
+      '/api/identity/partners/payments/initialize',
+      { amount }
+    );
+    return response.data;
+  },
+};

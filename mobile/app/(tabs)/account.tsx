@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
-import React from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import * as WebBrowser from 'expo-web-browser';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -9,6 +10,7 @@ import { LoadingScreen } from '../../components/ui/LoadingScreen';
 import { Colors } from '../../constants/colors';
 import { ordersApi } from '../../lib/api/orders';
 import { partnersApi } from '../../lib/api/partners';
+import { api } from '../../lib/api';
 
 // Unified ledger entry combining account transactions and priced orders
 interface LedgerEntry {
@@ -48,6 +50,10 @@ function EntryRow({ entry }: { entry: LedgerEntry }) {
 
 export default function AccountScreen() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [payModalVisible, setPayModalVisible] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [paying, setPaying] = useState(false);
 
   const {
     data: account,
@@ -122,6 +128,32 @@ export default function AccountScreen() {
 
   entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const handlePayment = async () => {
+    const parsed = parseFloat(payAmount.replace(',', '.'));
+    if (!parsed || parsed <= 0) {
+      Alert.alert('Hata', 'Geçerli bir tutar girin.');
+      return;
+    }
+    setPaying(true);
+    try {
+      const response = await api.post<{ token: string }>('/api/identity/partners/payments/initialize', { amount: parsed });
+      const token = response.data.token;
+      const baseUrl = (api.defaults.baseURL ?? 'http://localhost:8080').replace(/\/$/, '');
+      const formUrl = `${baseUrl}/api/identity/partners/payments/form/${token}`;
+      setPayModalVisible(false);
+      setPayAmount('');
+      const result = await WebBrowser.openBrowserAsync(formUrl);
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        // Refresh account after browser closes
+        queryClient.invalidateQueries({ queryKey: ['partner-account'] });
+      }
+    } catch {
+      Alert.alert('Hata', 'Ödeme başlatılamadı. Lütfen tekrar deneyin.');
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const balance = account.currentBalance;
   const balanceColor =
     balance === 0 ? Colors.textSecondary : balance > 0 ? Colors.error : Colors.success;
@@ -149,7 +181,51 @@ export default function AccountScreen() {
                   {t('account.discountRate')}: %{account.discountRate}
                 </Text>
               )}
+              {balance > 0 && (
+                <TouchableOpacity
+                  style={styles.payButton}
+                  onPress={() => { setPayAmount(balance.toFixed(2)); setPayModalVisible(true); }}
+                >
+                  <Text style={styles.payButtonText}>Ödeme Yap</Text>
+                </TouchableOpacity>
+              )}
             </Card>
+
+            {/* Payment modal */}
+            <Modal visible={payModalVisible} transparent animationType="slide">
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalBox}>
+                  <Text style={styles.modalTitle}>Ödeme Yap</Text>
+                  <Text style={styles.modalLabel}>Tutar (₺)</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    keyboardType="decimal-pad"
+                    value={payAmount}
+                    onChangeText={setPayAmount}
+                    placeholder="0.00"
+                  />
+                  {balance > 0 && (
+                    <TouchableOpacity onPress={() => setPayAmount(balance.toFixed(2))}>
+                      <Text style={styles.fullDebtLink}>
+                        Tüm borcu öde (₺{balance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setPayModalVisible(false)}>
+                      <Text style={styles.cancelBtnText}>İptal</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.confirmBtn, paying && styles.confirmBtnDisabled]}
+                      onPress={handlePayment}
+                      disabled={paying}
+                    >
+                      <Text style={styles.confirmBtnText}>{paying ? 'Yükleniyor...' : 'Devam Et'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
             <Text style={styles.sectionTitle}>{t('account.transactions')}</Text>
           </>
         }
@@ -203,4 +279,57 @@ const styles = StyleSheet.create({
   separator: { height: 8 },
   emptyCard: { alignItems: 'center', paddingVertical: 32 },
   emptyText: { fontSize: 14, color: Colors.textMuted },
+
+  payButton: {
+    marginTop: 16,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  payButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalBox: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 36,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.text, marginBottom: 20 },
+  modalLabel: { fontSize: 13, color: Colors.textSecondary, marginBottom: 6 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 18,
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  fullDebtLink: { fontSize: 13, color: Colors.primary, marginBottom: 20 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  cancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelBtnText: { color: Colors.text, fontWeight: '600' },
+  confirmBtn: {
+    flex: 2,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  confirmBtnDisabled: { opacity: 0.5 },
+  confirmBtnText: { color: '#fff', fontWeight: '700' },
 });

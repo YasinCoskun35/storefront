@@ -47,7 +47,27 @@ public static class DatabaseExtensions
                 var identityTableCount = await identityDb.Database.ExecuteSqlRawAsync(
                     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'identity'");
                 Console.WriteLine($"✅ Identity schema initialized ({identityTableCount} objects)");
-                
+
+                // Ensure PartnerPayments table exists (additive — safe on existing DBs)
+                await identityDb.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS identity.""PartnerPayments"" (
+                        ""Id"" varchar(450) PRIMARY KEY,
+                        ""PartnerCompanyId"" varchar(450) NOT NULL,
+                        ""PartnerUserId"" varchar(450) NOT NULL,
+                        ""IyzicoToken"" varchar(200) NOT NULL,
+                        ""ConversationId"" varchar(200) NOT NULL,
+                        ""Amount"" decimal(18,2) NOT NULL,
+                        ""Status"" varchar(20) NOT NULL DEFAULT 'Pending',
+                        ""CheckoutFormContent"" text NOT NULL,
+                        ""IyzicoPaymentId"" varchar(200),
+                        ""FailureReason"" varchar(1000),
+                        ""CreatedAt"" timestamp NOT NULL DEFAULT now(),
+                        ""CompletedAt"" timestamp
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_PartnerPayments_IyzicoToken"" ON identity.""PartnerPayments"" (""IyzicoToken"");
+                    CREATE INDEX IF NOT EXISTS ""IX_PartnerPayments_PartnerCompanyId"" ON identity.""PartnerPayments"" (""PartnerCompanyId"");
+                ");
+
                 // Create Catalog database and tables
                 var catalogDb = services.GetRequiredService<CatalogDbContext>();
                 if (catalogDb.Database.GetPendingMigrations().Any())

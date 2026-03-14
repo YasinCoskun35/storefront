@@ -16,6 +16,7 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
     public DbSet<PartnerUser> PartnerUsers => Set<PartnerUser>();
     public DbSet<PartnerContact> PartnerContacts => Set<PartnerContact>();
     public DbSet<PartnerAccountTransaction> PartnerAccountTransactions => Set<PartnerAccountTransaction>();
+    public DbSet<PartnerPayment> PartnerPayments => Set<PartnerPayment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -178,6 +179,26 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
 
             entity.HasIndex(t => t.PartnerCompanyId);
             entity.HasIndex(t => t.CreatedAt);
+        });
+
+        // Configure PartnerPayment
+        builder.Entity<PartnerPayment>(entity =>
+        {
+            entity.ToTable("PartnerPayments");
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).HasMaxLength(450);
+            entity.Property(p => p.PartnerCompanyId).IsRequired().HasMaxLength(450);
+            entity.Property(p => p.PartnerUserId).IsRequired().HasMaxLength(450);
+            entity.Property(p => p.IyzicoToken).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.ConversationId).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(p => p.Status).IsRequired().HasMaxLength(20);
+            entity.Property(p => p.CheckoutFormContent).IsRequired();
+            entity.Property(p => p.IyzicoPaymentId).HasMaxLength(200);
+            entity.Property(p => p.FailureReason).HasMaxLength(1000);
+
+            entity.HasIndex(p => p.IyzicoToken).IsUnique();
+            entity.HasIndex(p => p.PartnerCompanyId);
         });
     }
 }

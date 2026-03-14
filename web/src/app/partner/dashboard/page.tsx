@@ -17,6 +17,7 @@ import {
   Clock,
   CheckCircle,
   ArrowRight,
+  CreditCard,
 } from 'lucide-react';
 import { partnerOrdersApi } from '@/lib/api/orders';
 import { useTranslations } from 'next-intl';
@@ -111,6 +112,12 @@ export default function PartnerDashboardPage() {
                 <Button variant="ghost" size="sm">
                   <ShoppingCart className="h-5 w-5 mr-2" />
                   {t("myCart")}
+                </Button>
+              </Link>
+              <Link href="/partner/account">
+                <Button variant="ghost" size="sm">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Cari Hesap
                 </Button>
               </Link>
               <Link href="/partner/profile">
