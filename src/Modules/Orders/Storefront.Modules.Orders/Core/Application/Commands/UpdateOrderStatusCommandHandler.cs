@@ -11,11 +11,19 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
 {
     private readonly OrdersDbContext _context;
     private readonly IPartnerAccountService _partnerAccountService;
+    private readonly IExpoPushService _pushService;
+    private readonly IPartnerPushTokenResolver _pushTokenResolver;
 
-    public UpdateOrderStatusCommandHandler(OrdersDbContext context, IPartnerAccountService partnerAccountService)
+    public UpdateOrderStatusCommandHandler(
+        OrdersDbContext context,
+        IPartnerAccountService partnerAccountService,
+        IExpoPushService pushService,
+        IPartnerPushTokenResolver pushTokenResolver)
     {
-        _context = context;
+        _context            = context;
         _partnerAccountService = partnerAccountService;
+        _pushService        = pushService;
+        _pushTokenResolver  = pushTokenResolver;
     }
 
     public async Task<Result> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
@@ -78,6 +86,44 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
                 cancellationToken);
         }
 
+        // Send push notification to partner (fire-and-forget, never blocks the response)
+        if (!string.IsNullOrEmpty(order.PartnerUserId))
+        {
+            _ = SendPushNotificationAsync(order, request.NewStatus, cancellationToken);
+        }
+
         return Result.Success();
     }
+
+    private async Task SendPushNotificationAsync(Order order, OrderStatus newStatus, CancellationToken ct)
+    {
+        try
+        {
+            var token = await _pushTokenResolver.GetPushTokenAsync(order.PartnerUserId!, ct);
+            if (string.IsNullOrEmpty(token))
+                return;
+
+            var (title, body) = BuildNotificationText(order.OrderNumber, newStatus);
+            await _pushService.SendAsync(token, title, body,
+                new { orderId = order.Id, orderNumber = order.OrderNumber, status = newStatus.ToString() },
+                ct);
+        }
+        catch
+        {
+            // Never propagate push failures — order update already succeeded
+        }
+    }
+
+    private static (string Title, string Body) BuildNotificationText(string orderNumber, OrderStatus status)
+        => status switch
+        {
+            OrderStatus.Confirmed      => ("Order Confirmed", $"Your order {orderNumber} has been confirmed."),
+            OrderStatus.Preparing      => ("Order Preparing", $"Your order {orderNumber} is being prepared."),
+            OrderStatus.ReadyToShip    => ("Ready to Ship", $"Your order {orderNumber} is ready to ship."),
+            OrderStatus.Shipping       => ("Order Shipped", $"Your order {orderNumber} is on its way!"),
+            OrderStatus.Delivered      => ("Order Delivered", $"Your order {orderNumber} has been delivered."),
+            OrderStatus.Cancelled      => ("Order Cancelled", $"Your order {orderNumber} has been cancelled."),
+            OrderStatus.PendingPayment => ("Payment Required", $"Order {orderNumber} is awaiting payment."),
+            _                          => ("Order Update", $"Your order {orderNumber} status has been updated to {status}.")
+        };
 }

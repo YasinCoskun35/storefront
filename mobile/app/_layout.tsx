@@ -1,11 +1,69 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../constants/colors';
 import { AuthProvider, useAuth } from '../lib/auth';
 import '../lib/i18n';
+
+// ── Root Error Boundary ────────────────────────────────────────────────────────
+// Catches uncaught JS errors that would otherwise show a blank white screen.
+interface ErrorBoundaryState { hasError: boolean; message: string }
+
+class RootErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+
+  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+    return {
+      hasError: true,
+      message: error instanceof Error ? error.message : 'An unexpected error occurred.',
+    };
+  }
+
+  override render() {
+    if (this.state.hasError) {
+      return (
+        <View style={errorStyles.container}>
+          <Text style={errorStyles.icon}>⚠️</Text>
+          <Text style={errorStyles.title}>Something went wrong</Text>
+          <Text style={errorStyles.message}>{this.state.message}</Text>
+          <TouchableOpacity
+            style={errorStyles.button}
+            onPress={() => this.setState({ hasError: false, message: '' })}
+            activeOpacity={0.8}
+          >
+            <Text style={errorStyles.buttonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const errorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  icon:       { fontSize: 48, marginBottom: 8 },
+  title:      { fontSize: 20, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  message:    { fontSize: 13, color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  button:     { marginTop: 8, backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 8 },
+  buttonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +92,21 @@ function NavigationGuard() {
   const { user, isAuthenticated, isLoading, networkError, retryConnection } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+
+  // Navigate to order detail when user taps a push notification
+  useEffect(() => {
+    notificationListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as { orderId?: string } | undefined;
+      if (data?.orderId && isAuthenticated) {
+        router.push(`/(tabs)/orders/${data.orderId}`);
+      }
+    });
+
+    return () => {
+      notificationListener.current?.remove();
+    };
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -90,11 +163,13 @@ function NavigationGuard() {
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <NavigationGuard />
-      </AuthProvider>
-    </QueryClientProvider>
+    <RootErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <NavigationGuard />
+        </AuthProvider>
+      </QueryClientProvider>
+    </RootErrorBoundary>
   );
 }
 

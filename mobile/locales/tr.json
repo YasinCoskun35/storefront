@@ -37,7 +37,8 @@
     "partnerPortal": "İş Ortağı Portalı",
     "loginSubtitle": "Hesabınıza giriş yapın",
     "invalidCredentials": "Geçersiz e-posta veya şifre",
-    "loginFailed": "Giriş başarısız"
+    "loginFailed": "Giriş başarısız",
+    "contactAdmin": "Hesabınız yok mu? Yöneticinizle iletişime geçin."
   },
   "nav": {
     "home": "Ana Sayfa",

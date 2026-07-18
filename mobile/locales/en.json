@@ -37,7 +37,8 @@
     "partnerPortal": "Partner Portal",
     "loginSubtitle": "Sign in to your account",
     "invalidCredentials": "Invalid email or password",
-    "loginFailed": "Login failed"
+    "loginFailed": "Login failed",
+    "contactAdmin": "Don't have an account? Contact your administrator."
   },
   "nav": {
     "home": "Home",
