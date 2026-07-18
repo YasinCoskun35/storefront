@@ -1,0 +1,147 @@
+---
+description: Frontend Next.js 15 / React 19 patterns for the Storefront web app
+globs: ["web/**/*.ts", "web/**/*.tsx"]
+alwaysApply: true
+---
+
+# Frontend Architecture Rules
+
+## Project Overview
+Next.js 15 App Router, React 19, TypeScript (strict), Tailwind CSS, shadcn/ui, TanStack Query v5.
+
+## Directory Structure
+```
+web/src/
+  app/                    ← Next.js App Router pages
+    admin/                ← Admin panel (auth required)
+    partner/              ← Partner portal (partner auth)
+    (public)/             ← Public storefront
+  components/
+    ui/                   ← shadcn/ui base components (Button, Card, Input…)
+    admin/                ← Admin-specific components (forms, tables)
+    products/             ← Product display components
+    orders/               ← Order/cart components
+    layout/               ← Header, Footer, Sidebar
+  lib/
+    api.ts                ← Shared axios instance + global types
+    api/                  ← Domain-specific API clients (orders.ts, settings.ts)
+    utils.ts              ← Utility functions (cn, formatPrice, getImageUrl, generateSlug)
+```
+
+## Core Patterns
+
+### 1. Server vs Client Components
+```tsx
+// ✅ Use Server Components for SEO-critical pages (product pages, blog, home)
+// No "use client" directive needed
+export default async function ProductPage({ params }) {
+  const product = await catalogApi.getProductById(params.id);
+  return <div>{product.name}</div>;
+}
+
+// ✅ Use Client Components for interactivity (forms, filters, mutations)
+"use client";
+export function ProductForm() { ... }
+```
+- Public pages that need SEO → Server Components by default.
+- Admin/partner pages → Client Components (they're behind auth, SEO doesn't matter).
+- Never fetch data with `useEffect` + `axios` in Server Components — use `async/await` directly.
+
+### 2. Data Fetching (TanStack Query v5)
+```tsx
+// ✅ Client-side fetching
+const { data, isLoading, error } = useQuery({
+  queryKey: ["products", filters],      // Key includes all filter variables
+  queryFn: () => catalogApi.searchProducts(filters),
+  staleTime: 30_000,                    // 30s before refetch
+});
+
+// ✅ Mutations
+const mutation = useMutation({
+  mutationFn: (data) => catalogApi.createProduct(data),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+    toast.success("Product created");
+  },
+  onError: (err: any) => toast.error(err.response?.data?.message || "Failed"),
+});
+```
+- Query keys MUST include all variables that affect the result.
+- Always `invalidateQueries` on successful mutations that change server state.
+- Use `onError` with `err.response?.data?.message` fallback for user-facing errors.
+
+### 3. API Client Pattern
+```typescript
+// ✅ In lib/api/domain.ts
+export const catalogApi = {
+  async searchProducts(params: SearchParams): Promise<PagedResult<Product>> {
+    const response = await api.get<PagedResult<Product>>('/api/catalog/products', { params });
+    return response.data;
+  },
+};
+// ❌ Never call axios directly in components — always through lib/api clients
+```
+- All API calls go through `api` (the shared axios instance from `lib/api.ts`).
+- The axios instance automatically attaches the JWT `Authorization` header.
+- Always type the generic in `api.get<Type>()` for type safety.
+
+### 4. Authentication
+```typescript
+// Admin auth: localStorage key = 'accessToken'
+// Partner auth: localStorage key = 'partner_access_token'
+// The shared api axios instance reads 'accessToken' automatically.
+// Partner pages must manually set 'accessToken' = localStorage.getItem('partner_access_token') on login.
+```
+- Admin login stores `accessToken` in localStorage.
+- Partner login stores `partner_access_token`, `partner_user` in localStorage.
+- Auth guards use `useEffect` to check localStorage and redirect to login if missing.
+
+### 5. Toast Notifications
+```tsx
+// ✅ Always use sonner
+import { toast } from "sonner";
+toast.success("Saved");
+toast.error("Failed to save");
+// ❌ Never use @/components/ui/use-toast
+```
+
+### 6. Forms
+- Use controlled inputs with `useState` for simple forms.
+- For complex forms with validation, use `react-hook-form` + `zod`.
+- Always show loading state on submit buttons: `disabled={mutation.isPending}`.
+- Always show error messages from API responses, not generic "Something went wrong".
+
+### 7. Styling Rules
+- Use Tailwind utility classes directly — no CSS modules, no inline `style={}` except for dynamic values (e.g., color swatches).
+- Use `cn()` from `lib/utils` to conditionally combine classes.
+- Use `shadcn/ui` components from `@/components/ui/` for all base elements (Button, Input, Card, Badge, Dialog, etc.).
+- Dark mode is not implemented — don't add `dark:` variants.
+
+### 8. Image Handling
+```tsx
+// ✅ For API images (from /uploads/...)
+<Image src={getImageUrl(product.primaryImageUrl)} alt={product.name} unoptimized />
+// The 'unoptimized' prop bypasses Next.js image optimization for external/self-hosted images
+
+// ✅ For null/undefined images, show nothing or a placeholder div
+{product.primaryImageUrl && <Image ... />}
+```
+- Use `getImageUrl()` from `lib/utils` to convert relative paths to full API URLs.
+- Always add `alt` attributes to images.
+
+### 9. Naming Conventions
+| Element | Convention | Example |
+|---|---|---|
+| Pages | `page.tsx` in route folder | `app/admin/products/page.tsx` |
+| Components | PascalCase files | `ProductForm.tsx` |
+| Hooks | `use` prefix | `usePartnerAuth.ts` |
+| API clients | camelCase + `Api` suffix | `catalogApi`, `adminOrdersApi` |
+| Types/Interfaces | PascalCase | `Product`, `OrderDetails` |
+| CSS classes | Tailwind only | `className="flex items-center gap-4"` |
+
+### 10. TypeScript Strictness
+- No `any` types except in `catch (err: any)` and unavoidable third-party interop.
+- Always type API response generics: `api.get<Product[]>()`.
+- Use `interface` for objects with methods; `type` or `record` for plain data shapes.
+- Prefer optional chaining (`?.`) and nullish coalescing (`??`) over null checks.
+- `params` in Next.js 15 App Router are `Promise<{id: string}>` — always `await params` or use `use(params)`.

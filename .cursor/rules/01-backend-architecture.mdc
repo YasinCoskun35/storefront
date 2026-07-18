@@ -1,0 +1,116 @@
+---
+description: Backend .NET architecture rules for the Storefront modular monolith
+globs: ["src/**/*.cs"]
+alwaysApply: true
+---
+
+# Backend Architecture Rules
+
+## Project Overview
+This is a **Modular Monolith** built with .NET 10, using Clean Architecture + CQRS within each module.
+
+## Module Structure (MANDATORY)
+Every module lives under `src/Modules/{ModuleName}/Storefront.Modules.{ModuleName}/` and MUST follow this layout:
+```
+Core/
+  Domain/
+    Entities/       ← Pure domain entities, no EF Core or infrastructure dependencies
+    ValueObjects/   ← Immutable value objects (e.g., SeoMetadata, Address)
+    Enums/          ← Domain enums
+  Application/
+    Commands/       ← MediatR IRequest<Result<T>> + handler in same or adjacent file
+    Queries/        ← MediatR IRequest<Result<T>> + handler in same or adjacent file
+    DTOs/           ← Records for data transfer, never expose domain entities
+    Validators/     ← FluentValidation validators for commands
+Infrastructure/
+  Persistence/
+    {Module}DbContext.cs  ← One DbContext per module, with its own schema
+    Migrations/           ← EF Core migrations, always module-scoped
+API/
+  Controllers/      ← Thin controllers: validate auth, call mediator, map result → HTTP
+```
+
+## Non-negotiable Rules
+
+### 1. CQRS with MediatR
+- Commands mutate state. Queries read state. NEVER mix.
+- Command/Query record + Handler class go in the **same file** for simple cases; split into separate files only when the handler exceeds ~80 lines.
+- Always use `IRequest<Result<T>>` or `IRequest<Result>` return types.
+- Register handlers via `AddMediatR(typeof(SomeHandler).Assembly)` — never register individually.
+
+### 2. Result Pattern (never throw for business errors)
+```csharp
+// ✅ Correct
+return Result<string>.Failure(Error.NotFound("Product.NotFound", "Product not found."));
+return Result<string>.Success(product.Id);
+
+// ❌ Wrong - never throw ApplicationException for business logic
+throw new ApplicationException("Product not found");
+```
+- Use `Result<T>` for queries returning data.
+- Use `Result` (non-generic) for commands that return nothing.
+- Error types: `Error.NotFound`, `Error.Validation`, `Error.Conflict`, `Error.Unauthorized`.
+
+### 3. Database Schemas (physical isolation)
+- Each module MUST have its own PostgreSQL schema: `identity`, `catalog`, `content`, `orders`.
+- Cross-module data access is **forbidden** through DbContext. Use contracts/events.
+- Schema is set in DbContext `OnModelCreating`: `builder.HasDefaultSchema("catalog")`.
+- Migration history tables are module-scoped: `__EFMigrationsHistory_{ModuleName}`.
+
+### 4. Controllers are Thin
+```csharp
+// ✅ Correct controller action
+[HttpPost]
+public async Task<IActionResult> Create([FromBody] CreateProductCommand command, CancellationToken ct)
+{
+    var result = await _mediator.Send(command, ct);
+    return result.IsSuccess
+        ? CreatedAtAction(nameof(GetById), new { id = result.Value }, new { id = result.Value })
+        : result.Error.Type switch
+        {
+            "Validation" => BadRequest(new { error = result.Error.Code, message = result.Error.Message }),
+            "NotFound"   => NotFound(new { error = result.Error.Code, message = result.Error.Message }),
+            _            => StatusCode(500, new { error = result.Error.Code, message = result.Error.Message })
+        };
+}
+// ❌ Wrong - business logic in controller
+```
+
+### 5. Domain Entities
+- No business logic in setters. Use methods.
+- Required properties use `required` keyword (C# 11+).
+- IDs are strings (GUID format from `Guid.NewGuid().ToString()`).
+- Entities do NOT reference DTOs or application layer concerns.
+
+### 6. FluentValidation
+- Every Command that mutates state MUST have a corresponding `{Command}Validator.cs`.
+- Register via: `services.AddValidatorsFromAssembly(typeof(SomeValidator).Assembly)`.
+- Validators use `.NotEmpty()`, `.MaximumLength()`, `.EmailAddress()` etc. — never raw regex unless necessary.
+
+### 7. Authentication & Authorization
+- JWT is the only auth mechanism. Tokens are validated in `IdentityModuleExtensions`.
+- Admin endpoints use `[Authorize(Roles = "Admin")]`.
+- Partner endpoints use `[Authorize]` (any authenticated user).
+- Public endpoints have NO `[Authorize]` attribute.
+- User ID is extracted with: `User.FindFirst(ClaimTypes.NameIdentifier)?.Value`.
+- Company ID claim for partners: `User.FindFirst("companyId")?.Value`.
+
+### 8. Naming Conventions
+| Element | Convention | Example |
+|---|---|---|
+| Commands | `{Action}{Entity}Command` | `CreateProductCommand` |
+| Queries | `Get{Entity}Query` | `GetProductByIdQuery` |
+| Handlers | `{Command/Query}Handler` | `CreateProductCommandHandler` |
+| DTOs | `{Entity}Dto` or `{Entity}SummaryDto` | `ProductDto`, `OrderSummaryDto` |
+| Controllers | `{Entity}Controller` | `ProductsController` |
+
+### 9. Async/Await
+- All I/O methods are `async Task<T>`.
+- Always pass `CancellationToken cancellationToken` through all async methods.
+- Use `await query.ToListAsync(cancellationToken)` — never `.Result` or `.Wait()`.
+
+### 10. EF Core Queries
+- Always use `AsQueryable()` before building dynamic queries.
+- Use `Select()` to project to DTOs — never load full entities when only specific fields are needed.
+- For pagination: `Skip((page - 1) * pageSize).Take(pageSize)`.
+- Avoid N+1: use `Include()` for related data you know you'll use.

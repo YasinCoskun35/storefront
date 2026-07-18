@@ -1,0 +1,103 @@
+---
+description: General project conventions, git workflow, and cross-cutting concerns
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# General Project Rules
+
+## What This Project Is
+B2B furniture manufacturer platform. Partners (businesses) browse the catalog, build a cart, and submit order requests. Admin staff manages products, partners, color charts, and processes orders with pricing/status updates.
+
+**Key architectural decisions:**
+- No public e-commerce (no checkout, no payment processing yet)
+- Pricing is optional and configurable via feature flags
+- Blog is configurable via feature flag (`Features.Blog.Enabled`)
+- All business logic lives in the backend — frontend is display only
+
+## Feature Flags System
+Feature flags are stored in `content.AppSettings` and fetched from `GET /api/content/settings`.
+When adding new configurable features:
+1. Add a seed entry in `DatabaseExtensions.cs → SeedDefaultSettingsAsync()`
+2. Add the menu item with `featureKey` in `admin-sidebar.tsx`
+3. Use `settingsApi.isFeatureEnabled("Features.X.Enabled")` in components that should conditionally render
+
+Current flags:
+- `Features.Blog.Enabled` — show/hide blog section
+- `Features.Pricing.Enabled` — show/hide product prices
+- `Features.PublicCatalog.Enabled` — allow public browsing
+- `Site.Name`, `Site.ContactEmail`, `Site.MaintenanceMode`
+
+## Database Rules
+- **Never** run raw migrations manually. The app auto-creates/updates schemas on startup via `DatabaseExtensions.cs`.
+- New tables: add DDL in `DatabaseExtensions.cs` AND add EF Core configuration in the module's DbContext.
+- PostgreSQL naming: tables use `PascalCase` with double-quotes in SQL (`"Products"`).
+- Schema separation: `identity.*`, `catalog.*`, `content.*`, `orders.*` — never cross schemas with foreign keys.
+
+## Authentication Summary
+| Role | Login | Token Storage | API Prefix |
+|---|---|---|---|
+| Admin | `POST /api/identity/auth/login` | `localStorage.accessToken` | `/api/admin/*`, `/api/identity/admin/*` |
+| Partner | `POST /api/identity/partner/login` | `localStorage.partner_access_token` | `/api/partner/*` |
+| Public | None | None | `/api/catalog/*`, `/api/content/*` |
+
+Seeded admin credentials: `admin@storefront.com` / `AdminPassword123!`
+
+## Module Boundaries — What Talks to What
+```
+Frontend → API → Module Controllers → MediatR → Handlers → DbContext → PostgreSQL
+                                                                ↕
+                                                    (same module only)
+```
+Modules NEVER import from each other's namespaces. If Module A needs Module B's data:
+- In the future: use domain events (MassTransit/IPublisher)
+- Currently acceptable: duplicate the read through a separate query
+
+## Adding a New Feature — Checklist
+### Backend
+- [ ] Create Domain entity in `Core/Domain/Entities/`
+- [ ] Add `DbSet<Entity>` to module's DbContext and configure it in `OnModelCreating`
+- [ ] Add DDL to `DatabaseExtensions.cs` (CREATE TABLE IF NOT EXISTS)
+- [ ] Create Command(s) + Handler(s) + Validator(s) in `Core/Application/Commands/`
+- [ ] Create Query(ies) + Handler(s) + DTO(s) in `Core/Application/Queries/`
+- [ ] Create Controller in `API/Controllers/` with proper `[Authorize]` decorators
+- [ ] Build and verify: `dotnet build src/API/Storefront.Api/Storefront.Api.csproj`
+
+### Frontend
+- [ ] Add API client methods to appropriate file in `web/src/lib/api/`
+- [ ] Create page in `web/src/app/admin/` or `web/src/app/partner/`
+- [ ] Add navigation link in `admin-sidebar.tsx` or partner layout
+- [ ] Run `npx tsc --noEmit` to verify no TypeScript errors
+
+## Code Comment Policy
+- **DO NOT** add comments that narrate what the code does (`// Get the product`, `// Return result`)
+- **DO** comment non-obvious business rules: `// Slug must be unique across ALL categories, not just siblings`
+- **DO** comment workarounds: `// unoptimized=true required because images are served from the .NET API directly`
+- Keep comments in English regardless of team language
+
+## What NOT to Do
+- Never put business logic in controllers, pages, or React components
+- Never access one module's DbContext from another module's handler
+- Never use `.Wait()` or `.Result` on async operations
+- Never hardcode API URLs — always use `process.env.NEXT_PUBLIC_API_URL` or the shared `api` axios instance
+- Never commit secrets, connection strings, or JWT secrets to git
+- Never add `console.log` for debugging without removing it before commit (dev logging is OK through the axios interceptor)
+- Never create new UI components from scratch if an equivalent exists in `@/components/ui/`
+
+## Running the Project
+```bash
+# 1. Start database
+docker-compose up -d
+
+# 2. Start backend (auto-migrates on startup)
+cd src/API/Storefront.Api && dotnet run
+
+# 3. Start frontend
+cd web && npm run dev
+```
+
+Ports:
+- Backend: `http://localhost:8080`
+- Frontend: `http://localhost:3000`
+- Swagger: `http://localhost:8080/swagger`
+- PostgreSQL: `localhost:5432`
