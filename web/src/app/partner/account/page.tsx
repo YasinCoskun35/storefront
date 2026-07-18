@@ -34,7 +34,6 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 function TransactionRow({ tx }: { tx: PartnerAccountTransactionDto }) {
-  const isDebit = tx.type === 'OrderDebit';
   const isCredit = tx.type === 'PaymentCredit';
 
   return (
