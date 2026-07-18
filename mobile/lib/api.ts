@@ -47,7 +47,9 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.data ?? '');
+  if (__DEV__) {
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.data ?? '');
+  }
   return config;
 });
 
@@ -65,7 +67,9 @@ export function registerNetworkErrorHandler(handler: () => void) {
 
 api.interceptors.response.use(
   (response) => {
-    console.log(`[API] ✓ ${response.status} ${response.config.url}`, response.data);
+    if (__DEV__) {
+      console.log(`[API] ✓ ${response.status} ${response.config.url}`, response.data);
+    }
     return response;
   },
   async (error) => {
@@ -73,7 +77,9 @@ api.interceptors.response.use(
     const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
     const isNetworkError = !error.response && !isTimeout;
 
-    console.log(`[API] ✗ ${status} ${error.config?.url}`, error.response?.data ?? error.message);
+    if (__DEV__) {
+      console.log(`[API] ✗ ${status} ${error.config?.url}`, error.response?.data ?? error.message);
+    }
 
     if (status === 401) {
       await SecureStore.deleteItemAsync(TOKEN_KEY);

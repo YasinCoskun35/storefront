@@ -221,6 +221,15 @@ export const partnerPublicApi = {
     return response.data;
   },
 
+  refresh: async (): Promise<PartnerLoginResponse> => {
+    const response = await api.post(`/api/identity/partners/auth/refresh`);
+    return response.data;
+  },
+
+  logout: async (): Promise<void> => {
+    await api.post(`/api/identity/partners/auth/logout`);
+  },
+
   getProfile: async (): Promise<PartnerProfileResponse> => {
     const response = await api.get(`/api/identity/partners/profile`);
     return response.data;

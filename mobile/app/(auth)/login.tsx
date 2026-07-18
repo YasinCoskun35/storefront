@@ -17,15 +17,24 @@ import { Colors } from '../../constants/colors';
 import { authApi } from '../../lib/api/auth';
 import { useAuth } from '../../lib/auth';
 
-type LoginMode = 'partner' | 'admin';
-
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { signIn } = useAuth();
-  const [mode, setMode] = useState<LoginMode>('partner');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  // Admin mode is hidden — tap the logo 5 times to reveal it (internal use)
+  const [logoTaps, setLogoTaps] = useState(0);
+  const [adminMode, setAdminMode] = useState(false);
+
+  function handleLogoTap() {
+    const next = logoTaps + 1;
+    setLogoTaps(next);
+    if (next >= 5) {
+      setAdminMode((prev) => !prev);
+      setLogoTaps(0);
+    }
+  }
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
@@ -35,7 +44,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      if (mode === 'admin') {
+      if (adminMode) {
         const res = await authApi.adminLogin(email.trim(), password);
         const u = res.data.user;
         await signIn(res.data.accessToken, {
@@ -73,36 +82,18 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.logo}>Storefront</Text>
+            <TouchableOpacity onPress={handleLogoTap} activeOpacity={1}>
+              <Text style={styles.logo}>Storefront</Text>
+            </TouchableOpacity>
             <Text style={styles.subtitle}>
-              {mode === 'admin' ? 'Admin Panel' : t('auth.partnerPortal')}
+              {adminMode ? 'Admin Panel' : t('auth.partnerPortal')}
             </Text>
-          </View>
-
-          {/* Mode toggle */}
-          <View style={styles.toggle}>
-            <TouchableOpacity
-              style={[styles.toggleBtn, mode === 'partner' && styles.toggleBtnActive]}
-              onPress={() => setMode('partner')}
-            >
-              <Text style={[styles.toggleText, mode === 'partner' && styles.toggleTextActive]}>
-                Partner
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, mode === 'admin' && styles.toggleBtnActive]}
-              onPress={() => setMode('admin')}
-            >
-              <Text style={[styles.toggleText, mode === 'admin' && styles.toggleTextActive]}>
-                Admin
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.form}>
             <Text style={styles.title}>{t('auth.signIn')}</Text>
             <Text style={styles.desc}>
-              {mode === 'admin'
+              {adminMode
                 ? 'Enter your admin credentials.'
                 : t('auth.loginSubtitle')}
             </Text>
@@ -113,7 +104,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder={mode === 'admin' ? 'admin@storefront.com' : 'partner@company.com'}
+                placeholder={adminMode ? 'admin@storefront.com' : 'partner@company.com'}
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -144,9 +135,9 @@ export default function LoginScreen() {
               style={styles.submitButton}
             />
 
-            {mode === 'partner' && (
+            {!adminMode && (
               <Text style={styles.hint}>
-                Don't have an account? Contact your administrator.
+                {t('auth.contactAdmin')}
               </Text>
             )}
           </View>
@@ -163,19 +154,6 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 24 },
   logo: { fontSize: 28, fontWeight: '800', color: Colors.primary, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
-  toggle: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 20,
-    overflow: 'hidden',
-  },
-  toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: Colors.primary },
-  toggleText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
-  toggleTextActive: { color: '#fff' },
   form: {
     backgroundColor: Colors.surface,
     borderRadius: 16,

@@ -20,7 +20,8 @@ export function getImageUrl(url: string | undefined): string {
   
   // If URL starts with /, it's a relative URL from the API
   if (url.startsWith("/")) {
-    return `http://localhost:8080${url}`;
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+    return `${base}${url}`;
   }
   
   return url;

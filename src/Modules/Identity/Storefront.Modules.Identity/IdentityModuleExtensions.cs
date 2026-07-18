@@ -1,5 +1,6 @@
 using System.Text;
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Storefront.Modules.Identity.Core.Application.Commands;
 using Storefront.Modules.Identity.Core.Application.Interfaces;
 using Storefront.Modules.Identity.Core.Domain.Entities;
+using Storefront.Modules.Identity.Infrastructure.Behaviors;
 using Storefront.Modules.Identity.Infrastructure.Persistence;
 using Storefront.Modules.Identity.Infrastructure.Services;
 
@@ -43,6 +45,9 @@ public static class IdentityModuleExtensions
         var jwtSecret = configuration["Jwt:Secret"]
             ?? throw new InvalidOperationException("JWT Secret is not configured.");
 
+        var adminCookieName   = configuration["Cookie:AdminCookieName"]   ?? "admin_token";
+        var partnerCookieName = configuration["Cookie:PartnerCookieName"] ?? "partner_token";
+
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -64,6 +69,21 @@ public static class IdentityModuleExtensions
                 NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub,
                 RoleClaimType = System.Security.Claims.ClaimTypes.Role
             };
+
+            // Fall back to httpOnly cookies when no Authorization header is present
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    if (!context.Request.Headers.ContainsKey("Authorization"))
+                    {
+                        context.Token =
+                            context.Request.Cookies[adminCookieName] ??
+                            context.Request.Cookies[partnerCookieName];
+                    }
+                    return Task.CompletedTask;
+                }
+            };
         });
 
         // Register application services
@@ -79,8 +99,16 @@ public static class IdentityModuleExtensions
         // Register partner account service (used by Orders module via SharedKernel interface)
         services.AddScoped<Storefront.SharedKernel.IPartnerAccountService, IdentityPartnerAccountService>();
 
-        // Register MediatR handlers from this assembly
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(LoginUserCommand).Assembly));
+        // Register push notification services
+        services.AddHttpClient<Storefront.SharedKernel.IExpoPushService, ExpoPushService>();
+        services.AddScoped<Storefront.SharedKernel.IPartnerPushTokenResolver, IdentityPartnerPushTokenResolver>();
+
+        // Register MediatR handlers + validation pipeline behavior
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(LoginUserCommand).Assembly);
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        });
 
         // Register FluentValidation validators
         services.AddValidatorsFromAssembly(typeof(LoginUserCommandValidator).Assembly);

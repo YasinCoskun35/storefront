@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { api, authApi } from "@/lib/api";
 
 interface User {
   id: string;
@@ -14,7 +15,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
   isAdmin: boolean;
 }
@@ -37,34 +38,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      // Call backend directly — httpOnly cookie is set on the browser response
+      const data = await authApi.login(email, password);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Login failed");
-      }
-
-      const data = await response.json();
-      
-      // Store user data (not the tokens - those are in HttpOnly cookies)
+      // Store only user metadata for UI state; token is in the httpOnly cookie
       localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("accessToken", data.accessToken);
-      
+
       setUser(data.user);
       router.push("/admin/dashboard");
-    } catch (error) {
-      console.error("Login error:", error);
+    } catch (error: any) {
       throw error;
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post("/api/identity/auth/logout");
+    } catch {
+      // Proceed with client-side cleanup even if the backend call fails
+    }
     localStorage.removeItem("user");
-    localStorage.removeItem("accessToken");
     setUser(null);
     router.push("/login");
   };

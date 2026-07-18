@@ -20,6 +20,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { partnerOrdersApi } from '@/lib/api/orders';
+import { api } from '@/lib/api';
 import { useTranslations } from 'next-intl';
 
 interface PartnerUser {
@@ -65,11 +66,13 @@ export default function PartnerDashboardPage() {
     enabled: tokenLoaded,
   });
 
-  const handleLogout = () => {
-    localStorage.removeItem('partner_access_token');
-    localStorage.removeItem('partner_refresh_token');
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/identity/partners/auth/logout');
+    } catch {
+      // Proceed with client-side cleanup even if backend call fails
+    }
     localStorage.removeItem('partner_user');
-    localStorage.removeItem('accessToken');
     router.push('/partner/login');
   };
 

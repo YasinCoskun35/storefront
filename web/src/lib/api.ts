@@ -3,10 +3,10 @@ import axios, { AxiosInstance } from "axios";
 // Determine if we're running on the server or client
 const isServer = typeof window === "undefined";
 
-// API base URL - use container hostname on server, localhost on client
+// API base URL: NEXT_PUBLIC_API_URL (client + SSR) or API_URL (server-side container override)
 const API_BASE_URL = isServer
-  ? process.env.API_URL || "http://localhost:8080"
-  : "http://localhost:8080";
+  ? process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
+  : process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 // Create axios instance
 export const api: AxiosInstance = axios.create({
@@ -16,23 +16,6 @@ export const api: AxiosInstance = axios.create({
   },
   withCredentials: true, // Important for HttpOnly cookies
 });
-
-// Add JWT token from localStorage to all requests
-api.interceptors.request.use(
-  (config) => {
-    // Only run on client side
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Development: Add request/response logging
 if (process.env.NODE_ENV === 'development') {
@@ -380,18 +363,17 @@ export const contentApi = {
 
 export const authApi = {
   login: async (email: string, password: string) => {
-    const response = await api.post("/api/identity/auth/login", {
-      email,
-      password,
-    });
+    const response = await api.post("/api/identity/auth/login", { email, password });
     return response.data;
   },
 
   refresh: async (refreshToken: string) => {
-    const response = await api.post("/api/identity/auth/refresh", {
-      refreshToken,
-    });
+    const response = await api.post("/api/identity/auth/refresh", { refreshToken });
     return response.data;
+  },
+
+  logout: async (): Promise<void> => {
+    await api.post("/api/identity/auth/logout");
   },
 };
 

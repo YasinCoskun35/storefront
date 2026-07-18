@@ -28,8 +28,7 @@ export default function PartnerLoginPage() {
   const loginMutation = useMutation({
     mutationFn: (data: PartnerLoginData) => partnerPublicApi.login(data),
     onSuccess: (response) => {
-      localStorage.setItem('partner_access_token', response.accessToken);
-      localStorage.setItem('partner_refresh_token', response.refreshToken);
+      // Token is in the httpOnly cookie set by the backend; store only UI metadata
       localStorage.setItem('partner_user', JSON.stringify(response.user));
 
       toast({

@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { API_BASE_URL, TOKEN_KEY, USER_KEY, registerNetworkErrorHandler, registerUnauthorizedHandler } from './api';
+import { registerPushToken, unregisterPushToken } from './notifications';
 import type { User } from './types';
 
 interface AuthState {
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const bootstrapRef = useRef(false);
 
   const signOut = useCallback(async () => {
+    await unregisterPushToken();
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_KEY);
     setUser(null);
@@ -104,6 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
     setUser(userData);
     setNetworkError(false);
+    // Register push token after credentials are stored so the API call can authenticate
+    registerPushToken();
   }, []);
 
   const retryConnection = useCallback(() => {

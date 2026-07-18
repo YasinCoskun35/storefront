@@ -56,8 +56,7 @@ export default function PartnerProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("partner_access_token");
-    if (!token) {
+    if (!localStorage.getItem("partner_user")) {
       router.push("/partner/login");
       return;
     }
