@@ -46,57 +46,37 @@ cd Storefront
 
 ### 2. Configure Environment Variables
 
-Create `.env.production` (use `.env.production.example` as template):
+Copy the template and fill in the values:
 
 ```bash
-# PostgreSQL Configuration
-POSTGRES_DB=storefront
-POSTGRES_USER=storefront_user
-POSTGRES_PASSWORD=SECURE_PASSWORD_HERE_CHANGE_ME
-
-# JWT Configuration (CRITICAL - CHANGE IN PRODUCTION!)
-JWT_SECRET=GENERATE_A_SECURE_RANDOM_KEY_AT_LEAST_64_CHARACTERS_LONG_USE_openssl_rand_base64_48
-JWT_ISSUER=Storefront.Api
-JWT_AUDIENCE=Storefront.Web
+cp .env.production.example .env.production
 ```
 
-**Generate secure JWT secret:**
-```bash
-openssl rand -base64 48
-```
+`.env.production.example` documents every variable. The critical ones:
 
-### 3. Run Database Migrations
+| Variable | Purpose |
+|---|---|
+| `PUBLIC_URL` | Public URL of this instance — drives CORS, password reset links, iyzico redirects |
+| `POSTGRES_PASSWORD` | Database password |
+| `JWT_SECRET` | Token signing key — generate with `openssl rand -base64 48` |
+| `SMTP_HOST` + `SMTP_*` | Email delivery (password reset, order notifications). Empty = email disabled |
+| `ADMIN_NOTIFICATION_EMAIL` | Receives an email for each new partner order request |
+| `IYZICO_API_KEY` / `IYZICO_SECRET_KEY` | Online balance payments. Empty = feature unused |
 
-Before starting the app, run migrations:
+### 3. Database Migrations
 
-```bash
-# Identity Module
-dotnet ef database update \
-  --project src/Modules/Identity/Storefront.Modules.Identity/Storefront.Modules.Identity.csproj \
-  --startup-project src/API/Storefront.Api/Storefront.Api.csproj \
-  --context IdentityDbContext
-
-# Catalog Module
-dotnet ef database update \
-  --project src/Modules/Catalog/Storefront.Modules.Catalog/Storefront.Modules.Catalog.csproj \
-  --startup-project src/API/Storefront.Api/Storefront.Api.csproj \
-  --context CatalogDbContext
-
-# Content Module
-dotnet ef database update \
-  --project src/Modules/Content/Storefront.Modules.Content/Storefront.Modules.Content.csproj \
-  --startup-project src/API/Storefront.Api/Storefront.Api.csproj \
-  --context ContentDbContext
-```
+No manual step — the API applies all EF Core migrations automatically on
+startup (`DatabaseExtensions.cs`), including on the first run against an
+empty database and after every image upgrade.
 
 ### 4. Build and Start Production Containers
 
 ```bash
 # Build all images
-docker-compose -f docker-compose.prod.yml build
+docker-compose -f docker-compose.prod.yml --env-file .env.production build
 
 # Start all services
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml --env-file .env.production up -d
 
 # View logs
 docker-compose -f docker-compose.prod.yml logs -f
@@ -129,6 +109,33 @@ The Identity module auto-seeds the admin user on first run:
 - Password: `AdminPassword123!`
 
 **⚠️ IMPORTANT**: Change this password immediately after first login!
+
+---
+
+## 🏢 Per-Customer Deployment Checklist
+
+Each customer gets an isolated instance (own server or own compose project +
+domain). To onboard a new customer:
+
+1. **Provision** a host (2GB+ RAM) with Docker, and point the customer's
+   domain (e.g. `portal.customer.com`) at it.
+2. **Clone the repo** at the release tag you want to ship.
+3. **Create `.env.production`** from the template. Per customer you must set:
+   `PUBLIC_URL`, fresh `POSTGRES_PASSWORD`, fresh `JWT_SECRET`, the customer's
+   SMTP account, and `ADMIN_NOTIFICATION_EMAIL` (usually the customer's sales
+   inbox). iyzico keys only if they use online balance payments.
+4. **Start the stack** (step 4 above). Migrations and the admin seed run
+   automatically.
+5. **Set up HTTPS** (see SSL/HTTPS Setup below) — required, since auth cookies
+   are `Secure` by default.
+6. **First login** as `admin@storefront.com`, change the password, then
+   configure Site settings (name, contact email) and feature flags
+   (`Features.Pricing.Enabled`, etc.) in the admin panel.
+7. **Schedule backups**: add a cron entry for `scripts/backup-db.sh` (daily)
+   and copy the dumps off the host.
+8. **Upgrades**: `git pull` the new tag, then
+   `docker-compose -f docker-compose.prod.yml --env-file .env.production up -d --build`.
+   Migrations apply automatically on API startup.
 
 ---
 

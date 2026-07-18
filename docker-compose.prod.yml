@@ -36,6 +36,20 @@ services:
       - Jwt__Secret=${JWT_SECRET}
       - Jwt__Issuer=${JWT_ISSUER:-Storefront.Api}
       - Jwt__Audience=${JWT_AUDIENCE:-Storefront.Web}
+      - Cors__AllowedOrigins__0=${PUBLIC_URL}
+      - Frontend__BaseUrl=${PUBLIC_URL}
+      - Email__Host=${SMTP_HOST:-}
+      - Email__Port=${SMTP_PORT:-587}
+      - Email__Username=${SMTP_USERNAME:-}
+      - Email__Password=${SMTP_PASSWORD:-}
+      - Email__FromAddress=${SMTP_FROM_ADDRESS:-}
+      - Email__FromName=${SMTP_FROM_NAME:-Storefront}
+      - Email__AdminNotificationRecipient=${ADMIN_NOTIFICATION_EMAIL:-}
+      - Iyzico__ApiKey=${IYZICO_API_KEY:-}
+      - Iyzico__SecretKey=${IYZICO_SECRET_KEY:-}
+      - Iyzico__BaseUrl=${IYZICO_BASE_URL:-https://sandbox-api.iyzipay.com}
+      - Iyzico__CallbackUrl=${PUBLIC_URL}/api/identity/partners/payments/callback
+      - Iyzico__FrontendResultUrl=${PUBLIC_URL}/partner/payments/result
     volumes:
       - uploads_data:/app/uploads
     depends_on:
