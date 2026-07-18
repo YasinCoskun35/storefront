@@ -1,152 +1,250 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using Serilog;
 using Storefront.Api.Extensions;
-using Storefront.Modules.Identity;
+using Storefront.Api.Middleware;
 using Storefront.Modules.Catalog;
 using Storefront.Modules.Content;
+using Storefront.Modules.Identity;
 using Storefront.Modules.Orders;
 
-var builder = WebApplication.CreateBuilder(args);
+// ── Bootstrap logger — captures startup failures before full Serilog is configured ──
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-// Add services to the container
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // Allow string enums in JSON (e.g., "InStock" instead of 1)
-        options.JsonSerializerOptions.Converters.Add(
-            new System.Text.Json.Serialization.JsonStringEnumConverter());
-    });
-builder.Services.AddEndpointsApiExplorer();
-
-// Add CORS
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        if (builder.Environment.IsDevelopment())
-        {
-            // In development, allow all origins for easier testing
-            policy.SetIsOriginAllowed(_ => true)
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        }
-        else
-        {
-            // In production, use strict origin checking
-            policy.WithOrigins(
-                    "http://localhost:3000", 
-                    "http://localhost:3001",
-                    "https://localhost:3000",
-                    "https://localhost:3001"
-                  )
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        }
-    });
-});
+    Log.Information("Starting Storefront API...");
 
-// Add Swagger/OpenAPI
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
-    {
-        Title = "Storefront API",
-        Version = "v1",
-        Description = "Hardware Store Product Catalog API - Modular Monolith Architecture",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
-        {
-            Name = "Storefront Team",
-            Email = "admin@storefront.com"
-        }
-    });
+    var builder = WebApplication.CreateBuilder(args);
 
-    // Add JWT Authentication to Swagger
-    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.",
-        Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
+    // ── Serilog (reads full config from appsettings.json "Serilog" section) ──────────
+    builder.Host.UseSerilog((context, services, configuration) =>
+        configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext());
 
-    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
+    // ── Validate required secrets at startup — fail fast rather than at first request ─
+    var jwtSecret      = builder.Configuration["Jwt:Secret"];
+    var connectionStr  = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(jwtSecret))
+        throw new InvalidOperationException(
+            "Jwt:Secret is not configured. Set it via user-secrets (dev) or environment variable Jwt__Secret (prod).");
+
+    if (string.IsNullOrWhiteSpace(connectionStr))
+        throw new InvalidOperationException(
+            "ConnectionStrings:DefaultConnection is not configured. Set it via user-secrets or ConnectionStrings__DefaultConnection.");
+
+    // ── MVC + JSON ────────────────────────────────────────────────────────────────────
+    builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+            options.JsonSerializerOptions.Converters.Add(
+                new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+    builder.Services.AddEndpointsApiExplorer();
+
+    // ── CORS — origins read from config, never hardcoded ─────────────────────────────
+    var allowedOrigins = builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>() ?? [];
+
+    builder.Services.AddCors(options =>
+        options.AddPolicy("AllowFrontend", policy =>
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            if (allowedOrigins.Length == 0)
             {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                Log.Warning("Cors:AllowedOrigins is empty — CORS is disabled. " +
+                            "Set origins via Cors__AllowedOrigins__0, etc.");
+                // Reject all cross-origin requests when no origins are configured
+                policy.SetIsOriginAllowed(_ => false);
+            }
+            else
+            {
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials(); // required for httpOnly cookies
+            }
+        }));
+
+    // ── Rate Limiting (built-in, .NET 7+) ────────────────────────────────────────────
+    var authWindow      = builder.Configuration.GetValue<int>("RateLimit:AuthWindowSeconds", 60);
+    var authPermitLimit = builder.Configuration.GetValue<int>("RateLimit:AuthPermitLimit", 10);
+
+    builder.Services.AddRateLimiter(options =>
+    {
+        // Applied to all /auth/login and /partners/auth/login endpoints via [EnableRateLimiting]
+        options.AddSlidingWindowLimiter("AuthPolicy", opt =>
+        {
+            opt.PermitLimit           = authPermitLimit;
+            opt.Window                = TimeSpan.FromSeconds(authWindow);
+            opt.SegmentsPerWindow     = 6; // 6 segments → 10-second precision
+            opt.QueueProcessingOrder  = QueueProcessingOrder.OldestFirst;
+            opt.QueueLimit            = 0; // reject immediately when full
+        });
+
+        options.OnRejected = async (context, token) =>
+        {
+            context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)authWindow).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new { error = "RateLimit.Exceeded", message = "Too many requests. Please try again later." },
+                cancellationToken: token);
+        };
+    });
+
+    // ── Swagger ───────────────────────────────────────────────────────────────────────
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+        {
+            Title       = "Storefront API",
+            Version     = "v1",
+            Description = "B2B Furniture Platform — Modular Monolith Architecture"
+        });
+
+        options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Description = "JWT via Authorization header. Example: 'Bearer {token}'",
+            Name        = "Authorization",
+            In          = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            Type        = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme      = "bearer",
+            BearerFormat = "JWT"
+        });
+
+        options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
                 {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id   = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        });
+    });
+
+    // ── Domain modules ────────────────────────────────────────────────────────────────
+    builder.Services.AddIdentityModule(builder.Configuration);
+    builder.Services.AddCatalogModule(builder.Configuration);
+    builder.Services.AddContentModule(builder.Configuration);
+    builder.Services.AddOrdersModule(builder.Configuration);
+
+    // ── Health checks ─────────────────────────────────────────────────────────────────
+    builder.Services.AddHealthChecks()
+        .AddNpgSql(
+            connectionStr!,                       // already validated above — never null here
+            name:    "postgres",
+            tags:    ["db", "ready"],
+            timeout: TimeSpan.FromSeconds(5));
+
+    var app = builder.Build();
+
+    // ── Database init & seed ──────────────────────────────────────────────────────────
+    await app.Services.InitializeDatabasesAsync();
+    await app.Services.SeedIdentityDataAsync();
+
+    // ────────────────────────────────────────────────────────────────────────────────────
+    // MIDDLEWARE PIPELINE — order is critical
+    // 1. Global error handler  (outermost — catches everything below)
+    // 2. HSTS / HTTPS redirect (transport security)
+    // 3. Serilog request logging
+    // 4. Swagger (dev only)
+    // 5. CORS                  (before auth — sets headers on all requests incl. preflight)
+    // 6. Rate limiting
+    // 7. Static files          (no auth needed for uploaded images)
+    // 8. Authentication
+    // 9. Authorization
+    // 10. Controllers
+    // ────────────────────────────────────────────────────────────────────────────────────
+
+    app.UseMiddleware<GlobalExceptionMiddleware>();
+
+    if (!app.Environment.IsDevelopment())
+    {
+        // HSTS: tell browsers to only use HTTPS for 1 year (preload-ready)
+        app.UseHsts();
+        app.UseHttpsRedirection();
+    }
+
+    // Structured HTTP request/response logging via Serilog
+    app.UseSerilogRequestLogging(opts =>
+    {
+        opts.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set("RequestHost",   httpContext.Request.Host.Value ?? string.Empty);
+            diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+            diagnosticContext.Set("UserAgent",     httpContext.Request.Headers.UserAgent.ToString());
+        };
+    });
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "Storefront API v1");
+            options.RoutePrefix      = "swagger";
+            options.DocumentTitle    = "Storefront API Documentation";
+            options.DefaultModelsExpandDepth(-1);
+        });
+    }
+
+    app.UseCors("AllowFrontend");
+    app.UseRateLimiter();
+
+    // Serve uploaded product images — no auth required
+    var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "uploads");
+    Directory.CreateDirectory(uploadsPath);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider    = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+        RequestPath     = "/uploads",
+        ServeUnknownFileTypes = false, // only serve known types (jpg, png, webp, etc.)
+        OnPrepareResponse = ctx =>
+        {
+            // Prevent caching of images in CDN to allow updates
+            ctx.Context.Response.Headers.CacheControl = "public, max-age=3600";
         }
     });
-});
 
-builder.Services.AddIdentityModule(builder.Configuration);
-builder.Services.AddCatalogModule(builder.Configuration);
-builder.Services.AddContentModule(builder.Configuration);
-builder.Services.AddOrdersModule(builder.Configuration);
+    app.UseAuthentication();
+    app.UseAuthorization();
 
-var app = builder.Build();
+    app.MapControllers();
 
-// Initialize databases
-await app.Services.InitializeDatabasesAsync();
-
-// Seed Identity data
-await app.Services.SeedIdentityDataAsync();
-
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
+    // /health/ready — checks DB connectivity (used by load balancers / orchestrators)
+    app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Storefront API v1");
-        options.RoutePrefix = "swagger";
-        options.DocumentTitle = "Storefront API Documentation";
-        options.DefaultModelsExpandDepth(-1); // Hide schemas section by default
+        Predicate = hc => hc.Tags.Contains("ready")
     });
-}
 
-// Enable CORS (MUST be before Authentication/Authorization)
-app.UseCors("AllowFrontend");
-
-// Disable HTTPS redirection in development (causes certificate errors)
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
-
-// Serve static files from uploads directory
-var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "uploads");
-Directory.CreateDirectory(uploadsPath); // Ensure directory exists
-
-Console.WriteLine($"📁 Configuring static files from: {uploadsPath}");
-Console.WriteLine($"📁 Directory exists: {Directory.Exists(uploadsPath)}");
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
-    RequestPath = "/uploads",
-    ServeUnknownFileTypes = true,
-    OnPrepareResponse = ctx =>
+    // /health/live — always 200 while the process is running (liveness probe)
+    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
-        Console.WriteLine($"📸 Serving file: {ctx.File.Name}");
-    }
-});
+        Predicate = _ => false   // no checks — just confirms the process is up
+    });
 
-Console.WriteLine("✅ Static files middleware configured");
+    Log.Information("Storefront API started successfully");
+    app.Run();
+}
+catch (Exception ex) when (ex is not HostAbortedException)
+{
+    Log.Fatal(ex, "Application failed to start");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-// Health check endpoint
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
-
-app.Run();
+// Needed for WebApplicationFactory in integration tests
+public partial class Program { }

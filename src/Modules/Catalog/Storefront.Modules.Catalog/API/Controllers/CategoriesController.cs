@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Storefront.Modules.Catalog.Core.Application.Commands;
 using Storefront.Modules.Catalog.Core.Application.Queries;
@@ -36,6 +37,7 @@ public sealed class CategoriesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create(
         [FromBody] CreateCategoryCommand command,
         CancellationToken cancellationToken)

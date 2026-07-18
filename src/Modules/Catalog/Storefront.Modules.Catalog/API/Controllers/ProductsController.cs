@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Storefront.Modules.Catalog.Core.Application.Commands;
@@ -68,6 +69,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create(
         [FromBody] CreateProductCommand command,
         CancellationToken cancellationToken)
@@ -89,6 +91,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost("{id}/images")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UploadImage(
         string id,
         IFormFile file,
@@ -117,6 +120,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(string id, [FromBody] UpdateProductRequest request, CancellationToken cancellationToken)
     {
         var command = new UpdateProductCommand(
@@ -150,6 +154,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
     {
         var command = new DeleteProductCommand(id);
@@ -190,6 +195,7 @@ public sealed class ProductsController : ControllerBase
     }
     
     [HttpPost("{id}/components")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddComponentToBundle(
         string id,
         [FromBody] AddComponentRequest request,
@@ -220,6 +226,7 @@ public sealed class ProductsController : ControllerBase
     }
     
     [HttpDelete("{bundleId}/components/{componentId}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> RemoveComponentFromBundle(
         string bundleId,
         string componentId,
