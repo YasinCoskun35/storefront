@@ -92,11 +92,13 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
                 cancellationToken);
         }
 
-        // Notify partner via push + email (fire-and-forget, never blocks the response)
+        // Notify partner via push + email. Awaited (not fire-and-forget): the sends
+        // resolve scoped services (DbContext, HttpClient) that are disposed once the
+        // request scope ends. Both helpers swallow failures, so this cannot fail the update.
         if (!string.IsNullOrEmpty(order.PartnerUserId))
         {
-            _ = SendPushNotificationAsync(order, request.NewStatus, cancellationToken);
-            _ = SendEmailNotificationAsync(order, request.NewStatus);
+            await SendPushNotificationAsync(order, request.NewStatus, cancellationToken);
+            await SendEmailNotificationAsync(order, request.NewStatus);
         }
 
         return Result.Success();

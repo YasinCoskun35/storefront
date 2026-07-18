@@ -234,6 +234,12 @@ try
         Predicate = _ => false   // no checks — just confirms the process is up
     });
 
+    // /health — plain alias used by the Docker/nginx healthchecks and deploy docs
+    app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
+
     Log.Information("Storefront API started successfully");
     app.Run();
 }
