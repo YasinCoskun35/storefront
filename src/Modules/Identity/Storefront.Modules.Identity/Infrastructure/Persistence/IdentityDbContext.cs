@@ -117,6 +117,7 @@ public class IdentityDbContext : IdentityDbContext<ApplicationUser, ApplicationR
             entity.Property(pu => pu.LastName).IsRequired().HasMaxLength(100);
             entity.Property(pu => pu.Phone).HasMaxLength(20);
             entity.Property(pu => pu.Scopes).HasMaxLength(500);
+            entity.Property(pu => pu.PushToken).HasMaxLength(500);
 
             entity.Property(pu => pu.Role).IsRequired();
             entity.Property(pu => pu.IsActive).IsRequired();

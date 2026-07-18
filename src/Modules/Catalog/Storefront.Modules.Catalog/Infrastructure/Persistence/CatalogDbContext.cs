@@ -119,18 +119,20 @@ public class CatalogDbContext : DbContext
             entity.HasIndex(p => p.StockStatus);
             entity.HasIndex(p => p.ProductType);
 
-            // Trigram indexes for fuzzy search (GIN indexes)
+            // Trigram indexes for fuzzy search (GIN indexes — must have explicit names
+            // so EF does not merge them with the unique B-tree indexes above)
             entity.HasIndex(p => p.Name)
+                .HasDatabaseName("IX_Products_Name_gin")
                 .HasMethod("gin")
                 .HasOperators("gin_trgm_ops");
 
             entity.HasIndex(p => p.Description)
+                .HasDatabaseName("IX_Products_Description_gin")
                 .HasMethod("gin")
                 .HasOperators("gin_trgm_ops");
 
-            entity.HasIndex(p => p.SKU)
-                .HasMethod("gin")
-                .HasOperators("gin_trgm_ops");
+            // Note: SKU is an exact-match field; the unique B-tree index above is sufficient.
+            // A GIN trigram index on SKU would conflict with the unique constraint.
         });
     }
 

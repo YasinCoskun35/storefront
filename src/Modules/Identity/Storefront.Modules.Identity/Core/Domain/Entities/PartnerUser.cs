@@ -31,6 +31,9 @@ public class PartnerUser
     public int AccessFailedCount { get; set; } = 0;
     public DateTime? LockoutEnd { get; set; }
     
+    // Push Notifications
+    public string? PushToken { get; set; }
+
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
