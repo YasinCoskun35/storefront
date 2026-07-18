@@ -234,6 +234,14 @@ export const partnerPublicApi = {
     const response = await api.get(`/api/identity/partners/profile`);
     return response.data;
   },
+
+  forgotPassword: async (email: string): Promise<void> => {
+    await api.post(`/api/identity/partners/auth/forgot-password`, { email });
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<void> => {
+    await api.post(`/api/identity/partners/auth/reset-password`, { token, newPassword });
+  },
 };
 
 export interface PartnerAccountResponse {

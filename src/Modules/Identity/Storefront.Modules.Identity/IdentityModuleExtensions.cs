@@ -103,6 +103,10 @@ public static class IdentityModuleExtensions
         services.AddHttpClient<Storefront.SharedKernel.IExpoPushService, ExpoPushService>();
         services.AddScoped<Storefront.SharedKernel.IPartnerPushTokenResolver, IdentityPartnerPushTokenResolver>();
 
+        // Register email + partner contact services (used by Orders via SharedKernel interfaces)
+        services.AddScoped<Storefront.SharedKernel.IEmailService, SmtpEmailService>();
+        services.AddScoped<Storefront.SharedKernel.IPartnerContactResolver, IdentityPartnerContactResolver>();
+
         // Register MediatR handlers + validation pipeline behavior
         services.AddMediatR(cfg =>
         {

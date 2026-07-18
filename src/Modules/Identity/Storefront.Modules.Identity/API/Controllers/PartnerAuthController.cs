@@ -65,6 +65,39 @@ public class PartnerAuthController : ControllerBase
     }
 
     /// <summary>
+    /// Request a password reset email. Always returns 200 to avoid leaking account existence.
+    /// </summary>
+    [HttpPost("auth/forgot-password")]
+    [EnableRateLimiting("AuthPolicy")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest body,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(body.Email))
+            return BadRequest(new { error = "Validation", message = "Email is required." });
+
+        await _mediator.Send(new RequestPartnerPasswordResetCommand(body.Email), cancellationToken);
+        return Ok(new { message = "If the account exists, a reset email has been sent." });
+    }
+
+    /// <summary>
+    /// Reset password using the token from the reset email
+    /// </summary>
+    [HttpPost("auth/reset-password")]
+    [EnableRateLimiting("AuthPolicy")]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] PartnerResetPasswordRequest body,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new ResetPartnerPasswordCommand(body.Token, body.NewPassword), cancellationToken);
+
+        return result.IsSuccess
+            ? Ok(new { message = "Password has been reset. You can now sign in." })
+            : BadRequest(new { error = result.Error.Code, message = result.Error.Message });
+    }
+
+    /// <summary>
     /// Partner logout — clears the httpOnly auth cookie
     /// </summary>
     [HttpPost("auth/logout")]
@@ -149,3 +182,5 @@ public class PartnerAuthController : ControllerBase
 }
 
 public record RegisterPushTokenRequest(string? PushToken);
+public record ForgotPasswordRequest(string Email);
+public record PartnerResetPasswordRequest(string Token, string NewPassword);

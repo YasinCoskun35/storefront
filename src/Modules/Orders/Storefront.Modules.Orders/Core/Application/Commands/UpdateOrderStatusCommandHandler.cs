@@ -13,17 +13,23 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
     private readonly IPartnerAccountService _partnerAccountService;
     private readonly IExpoPushService _pushService;
     private readonly IPartnerPushTokenResolver _pushTokenResolver;
+    private readonly IEmailService _emailService;
+    private readonly IPartnerContactResolver _contactResolver;
 
     public UpdateOrderStatusCommandHandler(
         OrdersDbContext context,
         IPartnerAccountService partnerAccountService,
         IExpoPushService pushService,
-        IPartnerPushTokenResolver pushTokenResolver)
+        IPartnerPushTokenResolver pushTokenResolver,
+        IEmailService emailService,
+        IPartnerContactResolver contactResolver)
     {
         _context            = context;
         _partnerAccountService = partnerAccountService;
         _pushService        = pushService;
         _pushTokenResolver  = pushTokenResolver;
+        _emailService       = emailService;
+        _contactResolver    = contactResolver;
     }
 
     public async Task<Result> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
@@ -86,13 +92,39 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
                 cancellationToken);
         }
 
-        // Send push notification to partner (fire-and-forget, never blocks the response)
+        // Notify partner via push + email (fire-and-forget, never blocks the response)
         if (!string.IsNullOrEmpty(order.PartnerUserId))
         {
             _ = SendPushNotificationAsync(order, request.NewStatus, cancellationToken);
+            _ = SendEmailNotificationAsync(order, request.NewStatus);
         }
 
         return Result.Success();
+    }
+
+    private async Task SendEmailNotificationAsync(Order order, OrderStatus newStatus)
+    {
+        try
+        {
+            var email = await _contactResolver.GetEmailAsync(order.PartnerUserId!, CancellationToken.None);
+            if (string.IsNullOrEmpty(email))
+                return;
+
+            var (title, body) = BuildNotificationText(order.OrderNumber, newStatus);
+            var html = $"""
+                <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto">
+                  <h2>{title}</h2>
+                  <p>{body}</p>
+                  <p>Sipariş No / Order: <strong>{order.OrderNumber}</strong></p>
+                  <p style="color:#6b7280;font-size:13px">Detaylar için partner portalındaki Siparişlerim sayfasını ziyaret edin.<br/>Visit the My Orders page in the partner portal for details.</p>
+                </div>
+                """;
+            await _emailService.SendAsync(email, $"{title} — {order.OrderNumber}", html, CancellationToken.None);
+        }
+        catch
+        {
+            // Never propagate email failures — order update already succeeded
+        }
     }
 
     private async Task SendPushNotificationAsync(Order order, OrderStatus newStatus, CancellationToken ct)

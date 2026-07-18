@@ -11,11 +11,19 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
 {
     private readonly OrdersDbContext _context;
     private readonly IPartnerDiscountResolver _discountResolver;
+    private readonly IEmailService _emailService;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
-    public CreateOrderCommandHandler(OrdersDbContext context, IPartnerDiscountResolver discountResolver)
+    public CreateOrderCommandHandler(
+        OrdersDbContext context,
+        IPartnerDiscountResolver discountResolver,
+        IEmailService emailService,
+        Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _context = context;
         _discountResolver = discountResolver;
+        _emailService = emailService;
+        _configuration = configuration;
     }
 
     public async Task<Result<string>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -127,6 +135,30 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Res
         cart.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Notify admin about the new order request (fire-and-forget, never blocks the response)
+        var adminRecipient = _configuration["Email:AdminNotificationRecipient"];
+        if (!string.IsNullOrWhiteSpace(adminRecipient))
+        {
+            var itemCount = order.Items.Count;
+            var body = $"""
+                <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto">
+                  <h2>Yeni Sipariş Talebi</h2>
+                  <p><strong>{order.PartnerCompanyName}</strong> yeni bir sipariş talebi oluşturdu.</p>
+                  <ul>
+                    <li>Sipariş No: <strong>{order.OrderNumber}</strong></li>
+                    <li>Ürün kalemi: {itemCount}</li>
+                    <li>Tarih: {order.CreatedAt:dd.MM.yyyy HH:mm} (UTC)</li>
+                  </ul>
+                  <p>Detaylar için yönetim panelindeki Siparişler sayfasını ziyaret edin.</p>
+                </div>
+                """;
+            _ = _emailService.SendAsync(
+                adminRecipient,
+                $"Yeni Sipariş Talebi — {order.OrderNumber} ({order.PartnerCompanyName})",
+                body,
+                CancellationToken.None);
+        }
 
         return Result<string>.Success(order.Id);
     }

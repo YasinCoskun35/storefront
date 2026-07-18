@@ -34,6 +34,10 @@ public class PartnerUser
     // Push Notifications
     public string? PushToken { get; set; }
 
+    // Password Reset (stores SHA-256 hash of the emailed token, never the token itself)
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetTokenExpiresAt { get; set; }
+
     // Timestamps
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
