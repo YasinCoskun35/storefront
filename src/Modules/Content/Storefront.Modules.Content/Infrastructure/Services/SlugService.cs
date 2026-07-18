@@ -34,7 +34,7 @@ public sealed class SlugService : ISlugService
     private static string GenerateSlug(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
-            return string.Empty;
+            return "untitled";
 
         // Convert to lowercase
         var slug = text.ToLowerInvariant();
@@ -57,7 +57,7 @@ public sealed class SlugService : ISlugService
             slug = slug.Substring(0, 200).TrimEnd('-');
         }
 
-        return slug;
+        return slug.Length == 0 ? "untitled" : slug;
     }
 
     private static string RemoveDiacritics(string text)

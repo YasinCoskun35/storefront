@@ -20,22 +20,26 @@ public class Result
 
 public class Result<T>
 {
+    private readonly T _value;
+
     public bool IsSuccess { get; }
     public bool IsFailure => !IsSuccess;
-    public T Value { get; }
+    public T Value => IsSuccess
+        ? _value
+        : throw new InvalidOperationException("Cannot access Value on a failure result.");
     public Error Error { get; }
 
     private Result(T value)
     {
         IsSuccess = true;
-        Value = value;
+        _value = value;
         Error = default!;
     }
 
     private Result(Error error)
     {
         IsSuccess = false;
-        Value = default!;
+        _value = default!;
         Error = error;
     }
 

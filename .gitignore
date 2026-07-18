@@ -195,3 +195,9 @@ IMPLEMENTATION_*.md
 BUNDLE_AND_*.md
 READY_TO_USE.md
 SETUP_COMPLETE.md
+
+# Runtime data
+src/API/Storefront.Api/uploads/
+
+# Local assistant memory
+memory/
