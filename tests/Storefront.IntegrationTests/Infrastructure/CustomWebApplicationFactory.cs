@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Storefront.Modules.Catalog.Core.Application.Interfaces;
@@ -25,12 +27,25 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             .WithDatabase("storefront_test")
             .WithUsername("postgres")
             .WithPassword("postgres")
-            .WithPortBinding(5433, 5432)
-            .Build();
+            .Build(); // random host port — avoids conflict with dev Postgres on 5432/5433
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Inject test-only config values so the app can boot without user-secrets
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Secret"]   = "test-integration-secret-key-that-is-at-least-32-chars",
+                ["Jwt:Issuer"]   = "StorefrontTest",
+                ["Jwt:Audience"] = "StorefrontTest",
+                ["ConnectionStrings:DefaultConnection"] = _dbContainer.GetConnectionString(),
+                ["Cookie:SameSite"]     = "Lax",
+                ["Cookie:SecurePolicy"] = "None",
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
             // Remove existing DbContext registrations
@@ -67,16 +82,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll<IImageUploadService>();
             services.AddSingleton(mockImageUploadService);
 
-            // Build the service provider and apply migrations
-            var sp = services.BuildServiceProvider();
-            using var scope = sp.CreateScope();
-            var scopedServices = scope.ServiceProvider;
-
-            ApplyMigrations(scopedServices);
         });
 
         builder.UseEnvironment("Testing");
     }
+
 
     private static void RemoveDbContexts(IServiceCollection services)
     {
@@ -93,27 +103,13 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         }
     }
 
-    private static void ApplyMigrations(IServiceProvider serviceProvider)
+    protected override IHost CreateHost(IHostBuilder builder)
     {
-        try
-        {
-            var identityContext = serviceProvider.GetRequiredService<IdentityDbContext>();
-            identityContext.Database.EnsureCreated();
-
-            var catalogContext = serviceProvider.GetRequiredService<CatalogDbContext>();
-            catalogContext.Database.EnsureCreated();
-
-            var contentContext = serviceProvider.GetRequiredService<ContentDbContext>();
-            contentContext.Database.EnsureCreated();
-
-            var ordersContext = serviceProvider.GetRequiredService<OrdersDbContext>();
-            ordersContext.Database.EnsureCreated();
-        }
+        try { return base.CreateHost(builder); }
         catch (Exception ex)
         {
-            // Log or handle migration errors
-            Console.WriteLine($"Migration error: {ex.Message}");
-            throw;
+            throw new InvalidOperationException(
+                $"Test host startup failed — {ex.GetType().Name}: {ex.Message}", ex);
         }
     }
 

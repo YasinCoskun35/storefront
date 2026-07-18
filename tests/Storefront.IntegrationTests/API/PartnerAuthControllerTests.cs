@@ -7,7 +7,8 @@ using Storefront.IntegrationTests.Infrastructure;
 
 namespace Storefront.IntegrationTests.API;
 
-public class PartnerAuthControllerTests : IClassFixture<CustomWebApplicationFactory>
+[Collection("IntegrationTests")]
+public class PartnerAuthControllerTests
 {
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
@@ -190,10 +191,7 @@ public class PartnerAuthControllerTests : IClassFixture<CustomWebApplicationFact
         var createResult = await createResponse.Content.ReadFromJsonAsync<CreatePartnerResult>(_json);
         var companyId = createResult!.Id;
 
-        var approveResponse = await _client.PutAsJsonAsync(
-            $"/api/identity/admin/partners/{companyId}/approve",
-            new { ApprovalNotes = "Test approval" });
-        approveResponse.EnsureSuccessStatusCode();
+        // Note: admin-created partners are immediately Active — no separate approval needed.
 
         return (companyId, partnerEmail, partnerPassword);
     }

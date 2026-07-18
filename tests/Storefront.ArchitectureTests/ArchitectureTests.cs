@@ -165,7 +165,7 @@ public class ArchitectureTests
             .That()
             .Inherit(typeof(Microsoft.EntityFrameworkCore.DbContext))
             .Should()
-            .ResideInNamespace("*.Infrastructure.Persistence")
+            .ResideInNamespaceContaining("Infrastructure.Persistence")
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
@@ -180,7 +180,7 @@ public class ArchitectureTests
             .That()
             .Inherit(typeof(Microsoft.AspNetCore.Mvc.ControllerBase))
             .Should()
-            .ResideInNamespace("*.API.Controllers")
+            .ResideInNamespaceContaining("API.Controllers")
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(

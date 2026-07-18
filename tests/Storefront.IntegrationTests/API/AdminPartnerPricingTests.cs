@@ -7,7 +7,8 @@ using Storefront.IntegrationTests.Infrastructure;
 
 namespace Storefront.IntegrationTests.API;
 
-public class AdminPartnerPricingTests : IClassFixture<CustomWebApplicationFactory>
+[Collection("IntegrationTests")]
+public class AdminPartnerPricingTests
 {
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };

@@ -7,7 +7,8 @@ using Storefront.IntegrationTests.Infrastructure;
 
 namespace Storefront.IntegrationTests.API;
 
-public class CartAndOrderTests : IClassFixture<CustomWebApplicationFactory>
+[Collection("IntegrationTests")]
+public class CartAndOrderTests
 {
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
@@ -430,7 +431,19 @@ public class CartAndOrderTests : IClassFixture<CustomWebApplicationFactory>
 
     private async Task<string> CreateProductAsync(decimal price = 99.99m)
     {
+        // Save current auth header and restore after admin operations
+        var savedAuth = _client.DefaultRequestHeaders.Authorization;
+
         await AuthAsAdminAsync();
+
+        // Create a category first (required by validator)
+        var categoryResponse = await _client.PostAsJsonAsync("/api/catalog/categories", new
+        {
+            Name = $"Test Category {Guid.NewGuid():N}",
+            Description = "Test category"
+        });
+        categoryResponse.EnsureSuccessStatusCode();
+        var category = await categoryResponse.Content.ReadFromJsonAsync<ProductResult>(_json);
 
         var response = await _client.PostAsJsonAsync("/api/catalog/products", new
         {
@@ -438,13 +451,17 @@ public class CartAndOrderTests : IClassFixture<CustomWebApplicationFactory>
             SKU = $"TP-{Guid.NewGuid():N}",
             Description = "Test product for cart/order tests",
             Price = price,
-            CategoryId = (string?)null,
+            CategoryId = category!.Id,
             StockStatus = "InStock",
             Quantity = 100,
             IsActive = true
         });
         response.EnsureSuccessStatusCode();
         var product = await response.Content.ReadFromJsonAsync<ProductResult>(_json);
+
+        // Restore the original auth header (e.g. partner token)
+        _client.DefaultRequestHeaders.Authorization = savedAuth;
+
         return product!.Id;
     }
 
